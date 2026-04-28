@@ -35,10 +35,13 @@ sudo ./naiveproxy.sh
 0	Выйти 
 
 ## 📲 Клиенты для подключения
-Windows	v2rayN, официальный клиент  
-Android	Matsuri (лучший), SagerNet  
-iOS	Shadowrocket, Naive-iOS  
-macOS / Linux	Официальный клиент  
+
+| Платформа | Рекомендуемые клиенты |
+|-----------|----------------------|
+| **Windows** | v2rayN, NekoRay |
+| **Android** | Matsuri (лучший), SagerNet |
+| **iOS** | Shadowrocket, Naive-iOS |
+| **macOS / Linux** | NekoRay, sing-box, официальный бинарный клиент |  
 
 ## ❓ Часто задаваемые вопросы
 Почему нужен домен?
