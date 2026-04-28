@@ -30,16 +30,67 @@ wget https://raw.githubusercontent.com/krdn-dev/naiveproxy-installer/main/naivep
 chmod +x naiveproxy.sh
 sudo ./naiveproxy.sh
 
-## 👤 Автор
-**Kordan** ([krdn-dev](https://github.com/krdn-dev))
+🛠️ Меню и управление
+После запуска скрипта вам будет доступно простое меню:
 
-[![GitHub](https://img.shields.io/badge/GitHub-krdn--dev-181717?style=flat&logo=github)](https://github.com/krdn-dev)
+Пункт	Действие
+1	Установить NaiveProxy
+2	Удалить NaiveProxy
+3	Запустить NaiveProxy
+4	Остановить NaiveProxy
+5	Перезапустить NaiveProxy
+6	Показать конфигурацию клиента
+0	Выйти
 
-## 💰 Поддержать проект
-Если мой скрипт помог вам — можете отправить донат на развитие.
+📲 Клиенты для подключения
+Платформа	Рекомендуемые клиенты
+Windows	v2rayN, официальный клиент
+Android	Matsuri (лучший), SagerNet
+iOS	Shadowrocket, Naive-iOS
+macOS / Linux	Официальный клиент
 
-**Bitcoin (BTC):** `bc1p4ttkpfrgzpm7nyymyzdgyd2y6z04s62nxpygk38yylcp3t47m98qwnuhen`
+📁 Где лежат файлы
+Файл	Назначение
+/root/naive/naive-client.json	Конфигурация для официального клиента
+/root/naive/naive-url.txt	Ссылка для импорта
+/etc/caddy/Caddyfile	Конфигурация Caddy
 
-[![Bitcoin](https://img.shields.io/badge/Donate-Bitcoin-F7931A?style=flat&logo=bitcoin&logoColor=white)](bitcoin:bc1p4ttkpfrgzpm7nyymyzdgyd2y6z04s62nxpygk38yylcp3t47m98qwnuhen)
+🔧 Требования к серверу
+CPU: x86_64 или ARM64
+RAM: минимум 256 МБ (рекомендуется 512 МБ)
+Диск: минимум 1 ГБ свободного места
+Порты: 80 и 443 (для сертификатов Let's Encrypt)
+Домен: реальный домен, направленный на ваш сервер
 
-Спасибо! ❤️
+❓ Часто задаваемые вопросы
+Почему нужен домен?
+NaiveProxy маскируется под обычный HTTPS-трафик. Без реального домена и SSL-сертификата маскировка не работает.
+
+Что делать, если установка прервалась с ошибкой?
+Запустите скрипт снова, выберите пункт 2 («Удалить»), затем повторите установку.
+
+Как обновить NaiveProxy?
+Скрипт всегда собирает последнюю версию. Чтобы получить актуальную версию, удалите прокси (пункт 2) и установите заново (пункт 1).
+
+Можно ли подключаться с нескольких устройств?
+Да, используйте одни и те же данные для подключения на всех устройствах.
+
+📄 Лицензия
+Проект распространяется под лицензией MIT.
+Кратко: можно использовать, копировать, модифицировать, распространять с указанием авторства.
+Подробнее — в файле LICENSE.
+
+👤 Автор
+Kordan (krdn-dev)
+https://img.shields.io/badge/GitHub-krdn--dev-181717?style=flat&logo=github
+
+💰 Поддержать проект
+Если мой скрипт сэкономил вам время — вы можете поддержать разработку.
+
+Bitcoin (BTC):
+
+bc1p4ttkpfrgzpm7nyymyzdgyd2y6z04s62nxpygk38yylcp3t47m98qwnuhen
+https://img.shields.io/badge/Bitcoin-000000?style=flat&logo=bitcoin&logoColor=white
+
+Спасибо за поддержку! ❤️
+⭐ Поставьте звезду репозиторию, если скрипт вам помог!
