@@ -1,5 +1,5 @@
-# NaiveProxy Installer 🚀
-[![MIT License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+# 🚀 NaiveProxy Installer 
+
 **Автоматическая установка NaiveProxy на Linux сервер**
 
 ## ✨ Особенности
@@ -20,36 +20,36 @@
 | AlmaLinux / Rocky Linux | 8+ |
 
 ## 🚀 Быстрая установка
-wget https://raw.githubusercontent.com/krdn-dev/naiveproxy-installer/main/naiveproxy.sh
-chmod +x naiveproxy.sh
-sudo ./naiveproxy.sh
+wget https://raw.githubusercontent.com/krdn-dev/naiveproxy-installer/main/naiveproxy.sh  
+chmod +x naiveproxy.sh  
+sudo ./naiveproxy.sh  
 
 ## 🛠️ Меню и управление
-После запуска скрипта вам будет доступно простое меню:
-1	Установить NaiveProxy
-2	Удалить NaiveProxy
-3	Запустить NaiveProxy
-4	Остановить NaiveProxy
-5	Перезапустить NaiveProxy
-6	Показать конфигурацию клиента
-0	Выйти
+После запуска скрипта вам будет доступно простое меню:  
+1	Установить NaiveProxy  
+2	Удалить NaiveProxy  
+3	Запустить NaiveProxy  
+4	Остановить NaiveProxy  
+5	Перезапустить NaiveProxy  
+6	Показать конфигурацию клиента  
+0	Выйти 
 
 ## 📲 Клиенты для подключения
-Windows	v2rayN, официальный клиент
-Android	Matsuri (лучший), SagerNet
-iOS	Shadowrocket, Naive-iOS
-macOS / Linux	Официальный клиент
+Windows	v2rayN, официальный клиент  
+Android	Matsuri (лучший), SagerNet  
+iOS	Shadowrocket, Naive-iOS  
+macOS / Linux	Официальный клиент  
 
 ## 📁 Где лежат файлы
-/root/naive/naive-client.json	Конфигурация для официального клиента
-/root/naive/naive-url.txt	Ссылка для импорта
-/etc/caddy/Caddyfile	Конфигурация Caddy
+/root/naive/naiveproxy-client.json	Конфигурация для официального клиента  
+/root/naive/naiveproxy-url.txt	Ссылка для импорта  
+/etc/caddy/Caddyfile	Конфигурация Caddy  
 
 ## 🔧 Требования к серверу
-CPU: x86_64 или ARM64
-RAM: минимум 256 МБ (рекомендуется 512 МБ)
-Диск: минимум 1 ГБ свободного места
-Порты: 80 и 443 (для сертификатов Let's Encrypt)
+CPU: x86_64 или ARM64  
+RAM: минимум 256 МБ (рекомендуется 512 МБ)  
+Диск: минимум 1 ГБ свободного места  
+Порты: 80 и 443 (для сертификатов Let's Encrypt)  
 Домен: реальный домен, направленный на ваш сервер
 
 ## ❓ Часто задаваемые вопросы
@@ -66,21 +66,18 @@ NaiveProxy маскируется под обычный HTTPS-трафик. Бе
 Да, используйте одни и те же данные для подключения на всех устройствах.
 
 ## 📄 Лицензия
-Проект распространяется под лицензией MIT.
-Кратко: можно использовать, копировать, модифицировать, распространять с указанием авторства.
-Подробнее — в файле LICENSE.
+Проект распространяется под лицензией [![MIT License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)    
+Кратко: можно использовать, копировать, модифицировать, распространять с указанием авторства.  
 
 ## 👤 Автор
-Kordan (krdn-dev)
-https://img.shields.io/badge/GitHub-krdn--dev-181717?style=flat&logo=github
+### Kordan  
+[![GitHub](https://img.shields.io/badge/GitHub-krdn--dev-181717?style=flat&logo=github)](https://github.com/krdn-dev)
 
-## 💰 Поддержать проект
-Если мой скрипт сэкономил вам время — вы можете поддержать разработку.
+## 💰 Поддержать проект  
+Спасибо, что пользуетесь скриптом! Если хотите поддержать развитие проекта, можете отправить небольшое пожертвование.  
 
-Bitcoin (BTC):
+**Bitcoin (BTC):**
+`bc1p4ttkpfrgzpm7nyymyzdgyd2y6z04s62nxpygk38yylcp3t47m98qwnuhen`
 
-bc1p4ttkpfrgzpm7nyymyzdgyd2y6z04s62nxpygk38yylcp3t47m98qwnuhen
-https://img.shields.io/badge/Bitcoin-000000?style=flat&logo=bitcoin&logoColor=white
-
-Спасибо за поддержку! ❤️
+❤️ Спасибо за поддержку!     
 ⭐ Поставьте звезду репозиторию, если скрипт вам помог!
