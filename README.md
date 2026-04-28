@@ -57,6 +57,16 @@ NaiveProxy маскируется под обычный HTTPS-трафик. Бе
 Проект распространяется под лицензией [![MIT License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)    
 Кратко: можно использовать, копировать, модифицировать, распространять с указанием авторства.  
 
+## 🙏 Благодарности
+Этот скрипт основан на работе следующих проектов и разработчиков:  
+
+- [NaiveProxy](https://github.com/klzgrad/naiveproxy) от [klzgrad](https://github.com/klzgrad) — за сам прокси-протокол  
+- [Caddy](https://github.com/caddyserver/caddy) — за отличный веб-сервер  
+- [forwardproxy](https://github.com/klzgrad/forwardproxy) — за плагин для Caddy  
+- [xcaddy](https://github.com/caddyserver/xcaddy) — за удобную сборку  
+
+**Большое спасибо им за их труд!**
+
 ## 💰 Поддержать проект  
 Спасибо, что пользуетесь скриптом! Если хотите поддержать развитие проекта, можете отправить небольшое пожертвование.  
 
