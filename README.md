@@ -20,13 +20,13 @@
 | AlmaLinux / Rocky Linux | 8+ |
 
 ## 🚀 Быстрая установка
-wget https://raw.githubusercontent.com/krdn-dev/naiveproxy-installer/main/naiveproxy.sh  
-chmod +x naiveproxy.sh  
-sudo ./naiveproxy.sh  
 
-## 🛠️ Меню и управление
+    wget https://raw.githubusercontent.com/krdn-dev/naiveproxy-installer/main/naive.sh
+    chmod +x naive.sh
+    sudo ./naive.sh
 
-После запуска скрипта вам будет доступно простое меню:
+## 🛠️ Меню и управление  
+### После запуска скрипта вам будет доступно простое меню:
 
 | Пункт | Действие |
 |-------|----------|
@@ -61,7 +61,8 @@ NaiveProxy маскируется под обычный HTTPS-трафик. Бе
 Да, используйте одни и те же данные для подключения на всех устройствах.
 
 ## 📄 Лицензия
-Проект распространяется под лицензией [![MIT License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)    
+Проект распространяется под лицензией  [![MIT License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)  
+
 Кратко: можно использовать, копировать, модифицировать, распространять с указанием авторства.  
 
 ## 🙏 Благодарности
