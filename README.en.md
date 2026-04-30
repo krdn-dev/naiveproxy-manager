@@ -86,10 +86,8 @@ This script is based on the work of these projects and developers:
 **Many thanks to them for their hard work!**
 
 ## 💰 Support the Project  
-If this script saved you time and you'd like to support its development, you can send a small donation.  
-
-**Bitcoin (BTC):**
-`bc1p4ttkpfrgzpm7nyymyzdgyd2y6z04s62nxpygk38yylcp3t47m98qwnuhen`
+If this script saved you time and you'd like to support its development, you can send a small donation   [![Bitcoin](https://img.shields.io/badge/Bitcoin-F7931A?style=flat&logo=bitcoin&logoColor=white)](https://www.blockchain.com/explorer/addresses/btc/bc1p4ttkpfrgzpm7nyymyzdgyd2y6z04s62nxpygk38yylcp3t47m98qwnuhen)
+```bc1p4ttkpfrgzpm7nyymyzdgyd2y6z04s62nxpygk38yylcp3t47m98qwnuhen```
 
 ❤️ Thank you for your support!     
 ⭐ Star this repository if the script helped you!
