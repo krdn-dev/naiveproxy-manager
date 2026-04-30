@@ -21,9 +21,9 @@
 
 ## 🚀 Быстрая установка
 
-    wget https://raw.githubusercontent.com/krdn-dev/naiveproxy-installer/main/naive.sh
-    chmod +x naive.sh
-    sudo ./naive.sh
+    wget https://raw.githubusercontent.com/krdn-dev/naiveproxy-installer/main/naiveproxy.sh
+    chmod +x naiveproxy.sh
+    sudo ./naiveproxy.sh
 
 ## 🛠️ Меню и управление  
 ### После запуска скрипта вам будет доступно простое меню:
