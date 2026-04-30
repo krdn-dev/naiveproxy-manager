@@ -42,10 +42,11 @@
 
 | Платформа | Рекомендуемые клиенты |
 |-----------|----------------------|
-| **Windows** | v2rayN, NekoRay |
-| **Android** | Matsuri (лучший), SagerNet |
-| **iOS** | Shadowrocket, Naive-iOS |
-| **macOS / Linux** | NekoRay, sing-box, официальный бинарный клиент |  
+| **Windows** | [NekoRay](https://github.com/MatsuriDayo/nekoray), [Hiddify](https://github.com/hiddify/hiddify-app) |
+| **Android** | [NekoBox](https://github.com/MatsuriDayo/NekoBoxForAndroid), [Matsuri](https://github.com/MatsuriDayo/Matsuri) |
+| **iOS** | [Shadowrocket](https://apps.apple.com/ru/app/shadowrocket/id932747118), [Karing](https://apps.apple.com/us/app/karing/id6472431552) |
+| **macOS / Linux** | [NekoRay](https://github.com/MatsuriDayo/nekoray), [sing-box](https://github.com/SagerNet/sing-box) |  
+    Формат подключения: naive+https://ЛОГИН:ПАРОЛЬ@ВАШ_ДОМЕН:443
 
 ## ❓ Часто задаваемые вопросы
 ### Почему нужен домен?  
