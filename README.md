@@ -1,6 +1,6 @@
 # NaiveProxy Installer
 
-[![MIT License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![MIT License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)   [![Status](https://img.shields.io/badge/status-testing-yellow)](https://github.com/krdn-dev/naiveproxy-installer)
 
 **One-command installer for NaiveProxy on Linux**
 
