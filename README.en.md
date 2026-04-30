@@ -4,6 +4,8 @@
 
 **🧪 Status:** The script is in testing phase. Tested by me on Debian 13. Please test on other OS and report via [Issues](https://github.com/krdn-dev/naiveproxy-installer/issues)
 
+**⚠️ Disclaimer:** This script is provided "as is". The author is not responsible for any data loss or damage arising from its use.
+
 ## ✨ Features
 
 - 🚀 Auto-installation of the latest Go version
