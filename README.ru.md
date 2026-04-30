@@ -83,10 +83,8 @@ NaiveProxy маскируется под обычный HTTPS-трафик. Бе
 **Большое спасибо им за их труд!**
 
 ## 💰 Поддержать проект  
-Спасибо, что пользуетесь скриптом! Если хотите поддержать развитие проекта, можете отправить небольшое пожертвование.  
-
-**Bitcoin (BTC):**
-`bc1p4ttkpfrgzpm7nyymyzdgyd2y6z04s62nxpygk38yylcp3t47m98qwnuhen`
+Спасибо, что пользуетесь скриптом! Если хотите поддержать развитие проекта, можете отправить небольшое пожертвование   [![Bitcoin](https://img.shields.io/badge/Bitcoin-F7931A?style=flat&logo=bitcoin&logoColor=white)](https://www.blockchain.com/explorer/addresses/btc/bc1p4ttkpfrgzpm7nyymyzdgyd2y6z04s62nxpygk38yylcp3t47m98qwnuhen)
+```bc1p4ttkpfrgzpm7nyymyzdgyd2y6z04s62nxpygk38yylcp3t47m98qwnuhen```
 
 ❤️ Спасибо за поддержку!     
 ⭐ Поставьте звезду репозиторию, если скрипт вам помог!
