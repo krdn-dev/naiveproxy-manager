@@ -20,11 +20,11 @@
 | AlmaLinux / Rocky Linux | 8+ |
 
 ## 🚀 Быстрая установка
-
-    wget https://raw.githubusercontent.com/krdn-dev/naiveproxy-installer/main/naiveproxy.sh
-    chmod +x naiveproxy.sh
-    sudo ./naiveproxy.sh
-
+```bash
+wget https://raw.githubusercontent.com/krdn-dev/naiveproxy-installer/main/naiveproxy.sh
+chmod +x naiveproxy.sh
+sudo ./naiveproxy.sh
+```
 ## 🛠️ Меню и управление  
 ### После запуска скрипта вам будет доступно простое меню:
 
@@ -46,7 +46,7 @@
 | **Android** | [NekoBox](https://github.com/MatsuriDayo/NekoBoxForAndroid), [Matsuri](https://github.com/MatsuriDayo/Matsuri) |
 | **iOS** | [Shadowrocket](https://apps.apple.com/ru/app/shadowrocket/id932747118), [Karing](https://apps.apple.com/us/app/karing/id6472431552) |
 | **macOS / Linux** | [NekoRay](https://github.com/MatsuriDayo/nekoray), [sing-box](https://github.com/SagerNet/sing-box) |  
-    Формат подключения: naive+https://ЛОГИН:ПАРОЛЬ@ВАШ_ДОМЕН:443
+    Формат подключения:  naive+https://ЛОГИН:ПАРОЛЬ@ВАШ_ДОМЕН:443
 
 ## ❓ Часто задаваемые вопросы
 ### Почему нужен домен?  
