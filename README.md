@@ -1,4 +1,4 @@
-# 🚀 NaiveProxy Installer 
+# NaiveProxy Installer 
 
 **Автоматическая установка NaiveProxy на Linux сервер**
 
