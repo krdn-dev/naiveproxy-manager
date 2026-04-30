@@ -2,6 +2,8 @@
 
 **Automated NaiveProxy setup for Linux server**
 
+**🧪 Status:** The script is in testing phase. Tested by me on Debian 13. Please test on other OS and report via [Issues](https://github.com/krdn-dev/naiveproxy-installer/issues)
+
 ## ✨ Features
 
 - 🚀 Auto-installation of the latest Go version
