@@ -48,6 +48,8 @@ wget -O naiveproxy.sh https://raw.githubusercontent.com/krdn-dev/naiveproxy-inst
 
 Формат подключения: ```naive+https://ЛОГИН:ПАРОЛЬ@ВАШ_ДОМЕН:443```
 
+Пример: ```naive+https://john:myPass123@example.com:443```
+
 ## ❓ Часто задаваемые вопросы
 ### Почему нужен домен?  
 NaiveProxy маскируется под обычный HTTPS-трафик. Без реального домена и SSL-сертификата маскировка не работает.
