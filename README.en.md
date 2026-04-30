@@ -47,8 +47,11 @@ wget -O naiveproxy.sh https://raw.githubusercontent.com/krdn-dev/naiveproxy-inst
 | **Windows** | [NekoRay](https://github.com/MatsuriDayo/nekoray), [Hiddify](https://github.com/hiddify/hiddify-app) |
 | **Android** | [NekoBox](https://github.com/MatsuriDayo/NekoBoxForAndroid), [Matsuri](https://github.com/MatsuriDayo/Matsuri) |
 | **iOS** | [Shadowrocket](https://apps.apple.com/ru/app/shadowrocket/id932747118), [Karing](https://apps.apple.com/us/app/karing/id6472431552) |
-| **macOS / Linux** | [NekoRay](https://github.com/MatsuriDayo/nekoray), [sing-box](https://github.com/SagerNet/sing-box) |  
-    Connection string format:  naive+https://ЛОГИН:ПАРОЛЬ@ВАШ_ДОМЕН:443
+| **macOS / Linux** | [NekoRay](https://github.com/MatsuriDayo/nekoray), [sing-box](https://github.com/SagerNet/sing-box) | 
+
+**Connection string format:** ```naive+https://LOGIN:PASSWORD@YOUR_DOMAIN:443```
+
+Example: ```naive+https://john:myPass123@example.com:443```
 
 ## ❓ FAQ
 ### Why do I need a domain?  
