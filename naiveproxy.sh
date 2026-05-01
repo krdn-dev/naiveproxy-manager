@@ -425,7 +425,7 @@ build_caddy() {
     export TMPDIR=/root/tmp
 
     yellow "Building Caddy with the forwardproxy plugin (may take 3-5 minutes) ..."
-    ~/go/bin/xcaddy build --with github.com/caddyserver/forwardproxy@caddy2=github.com/klzgrad/forwardproxy@naive
+    ~/go/bin/xcaddy build --with github.com/caddyserver/forwardproxy@caddy2=github.com/klzgrad/forwardproxy@naive --with github.com/mholt/caddy-ratelimit
 
     mv caddy /usr/bin/caddy
     chmod +x /usr/bin/caddy
