@@ -14,12 +14,13 @@
 | 🔧 **Custom Caddy** | Builds Caddy + forwardproxy from source |
 | 🔐 **Let's Encrypt** | Real SSL certificates for your domain |
 | 📱 **Client configs** | JSON, URL, and QR‑code for easy import |
-| 🖥️ **Cross‑platform** | Works on Debian, Ubuntu, CentOS, Fedora, AlmaLinux, Rocky |
+| 🖥️ **Cross‑platform** | Works on Debian, Ubuntu, CentOS, Fedora, AlmaLinux, Rocky, Oracle |
 | ⚡ **BBR** | Enables TCP BBR for better performance |
 | 🛡️ **Pre‑flight checks** | DNS, port, and system requirements validation |
 | 🛡️ **fail2ban** | Automatic SSH brute‑force protection |
 | 🎨 **Corporate site simulation** | Full multi-page website (About, Blog, Contact, sitemap, robots.txt) |
 | 🔄 **Auto‑updates** | Security updates (unattended‑upgrades / dnf‑automatic) |
+| 💾 **Smart swap** | Auto‑creates swap file on low‑memory servers to prevent OOM kills |
 
 ## 📋 Supported Systems
 
