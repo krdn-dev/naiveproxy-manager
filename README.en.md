@@ -18,7 +18,7 @@
 | ⚡ **BBR** | Enables TCP BBR for better performance |
 | 🛡️ **Pre‑flight checks** | DNS, port, and system requirements validation |
 | 🛡️ **fail2ban** | Automatic SSH brute‑force protection |
-| 🎨 **Custom landing page** | Domain‑specific corporate placeholder page |
+| 🎨 **Corporate site simulation** | Full multi-page website (About, Blog, Contact, sitemap, robots.txt) |
 | 🔄 **Auto‑updates** | Security updates (unattended‑upgrades / dnf‑automatic) |
 
 ## 📋 Supported Systems
