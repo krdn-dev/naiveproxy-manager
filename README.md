@@ -10,5 +10,5 @@
 ## Quick Install
 
 ```bash
-wget -O naiveproxy.sh https://raw.githubusercontent.com/krdn-dev/naiveproxy-installer/main/naiveproxy.sh && sudo bash naiveproxy.sh
+wget -O naiveproxy.sh https://raw.githubusercontent.com/krdn-dev/naiveproxy-installer/main/naiveproxy.sh && bash naiveproxy.sh
 ```
