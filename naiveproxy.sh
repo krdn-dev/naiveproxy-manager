@@ -305,9 +305,6 @@ setup_swap() {
     fi
 }
 
-# =====================================
-# Function: Install base packages
-# =====================================
 install_base_packages() {
     yellow "Installing base packages ..."
     
@@ -318,15 +315,15 @@ install_base_packages() {
         ${PACKAGE_UPDATE[int]}
     fi
     
-    # ----- For CentOS/RHEL/Alma/Rocky, enable EPEL (needed for qrencode and fail2ban) -----
-	if [[ $SYSTEM == "CentOS" ]] || [[ $SYSTEM == "Fedora" ]] || [[ $SYSTEM == "AlmaLinux" ]] || [[ $SYSTEM == "Rocky Linux" ]]; then
-		if ! rpm -q epel-release &>/dev/null && ! rpm -q epel-next-release &>/dev/null; then
-			yellow "Connecting the EPEL repository ..."
-			${PACKAGE_INSTALL[int]} epel-release -y 2>/dev/null
-		fi
-	fi
-	
-	# ----- For Oracle Linux -----
+    # ----- For CentOS/RHEL/Alma/Rocky, enable EPEL -----
+    if [[ $SYSTEM == "CentOS" ]] || [[ $SYSTEM == "Fedora" ]] || [[ $SYSTEM == "AlmaLinux" ]] || [[ $SYSTEM == "Rocky Linux" ]]; then
+        if ! rpm -q epel-release &>/dev/null && ! rpm -q epel-next-release &>/dev/null; then
+            yellow "Connecting the EPEL repository ..."
+            ${PACKAGE_INSTALL[int]} epel-release -y 2>/dev/null
+        fi
+    fi
+    
+    # ----- For Oracle Linux -----
     if [[ $SYSTEM == "Oracle Linux" ]]; then
         if ! dnf repolist | grep -q "ol10_developer_EPEL"; then
             yellow "Connecting Oracle Linux EPEL repository ..."
@@ -356,6 +353,38 @@ install_base_packages() {
     else
         green "qrencode already installed"
     fi
+    
+    # ----- Configure firewall -----
+    case $SYSTEM in
+        "Debian"|"Ubuntu")
+            if ! command -v ufw &>/dev/null; then
+                ${PACKAGE_INSTALL[int]} ufw -y 2>/dev/null
+            fi
+			sed -i 's/IPV6=yes/IPV6=no/' /etc/default/ufw 2>/dev/null
+            ufw --force reset 2>/dev/null
+            ufw default deny incoming 2>/dev/null
+            ufw default allow outgoing 2>/dev/null
+            ufw allow 22/tcp 2>/dev/null
+            ufw allow 80/tcp 2>/dev/null
+            ufw allow 443/tcp 2>/dev/null
+            ufw --force enable 2>/dev/null
+            green "UFW firewall configured"
+            ;;
+        "CentOS"|"Fedora"|"AlmaLinux"|"Rocky Linux"|"Oracle Linux")
+            if ! command -v firewall-cmd &>/dev/null; then
+                ${PACKAGE_INSTALL[int]} firewalld -y 2>/dev/null
+            fi
+            systemctl enable --now firewalld 2>/dev/null
+            firewall-cmd --permanent --add-port=22/tcp 2>/dev/null
+            firewall-cmd --permanent --add-port=80/tcp 2>/dev/null
+            firewall-cmd --permanent --add-port=443/tcp 2>/dev/null
+            firewall-cmd --reload 2>/dev/null
+            green "firewalld configured"
+            ;;
+        *)
+            yellow "Unknown OS — firewall not configured automatically"
+            ;;
+    esac
     
     green "Basic packages are installed"
 }
@@ -584,12 +613,8 @@ input_parameters() {
             break
         fi
     done
-    
-    echo ""
-    yellow "═══════════════════════════════════════════════════════════════"
+	
     green "✓ Configuration completed successfully!"
-    yellow "═══════════════════════════════════════════════════════════════"
-    echo ""
 }	
 
 # =====================================
@@ -617,7 +642,7 @@ create_configs() {
         root /var/www/html
     }
     
-    # Rate limiting — защита от DDoS и перебора
+    # Rate limiting — DDoS and brute force protection
     rate_limit {
         zone dynamic {
             key {remote_host}
@@ -1541,6 +1566,102 @@ EOF
 }
 
 # =====================================
+# Function: Show installation checklist
+# =====================================
+show_install_checklist() {
+    echo ""
+	yellow "═══════════════════════════════════════════════════════════════"
+    yellow "                    INSTALLATION CHECKLIST"
+    yellow "═══════════════════════════════════════════════════════════════"
+	echo ""
+	
+    # Caddy
+    if systemctl is-active --quiet caddy; then
+        green "✓ Caddy service: running"
+    else
+        red "✗ Caddy service: NOT running"
+    fi
+    
+    # Ports
+    ss -tlnp | grep -q ":22 " && green "✓ Port 22: listening" || green "○ Port 22: not listening"
+    ss -tlnp | grep -q ":80 " && green "✓ Port 80: listening" || green "○ Port 80: not listening"
+    ss -tlnp | grep -q ":443 " && green "✓ Port 443: listening" || green "○ Port 443: not listening"
+    
+    # UFW
+    if command -v ufw &>/dev/null && ufw status | grep -q "Status: active"; then
+		ufw status | grep -q "22/tcp.*ALLOW" && green "✓ UFW: port 80 allowed" || green "○ UFW: port 22 rule missing"
+        ufw status | grep -q "80/tcp.*ALLOW" && green "✓ UFW: port 80 allowed" || green "○ UFW: port 80 rule missing"
+        ufw status | grep -q "443/tcp.*ALLOW" && green "✓ UFW: port 443 allowed" || green "○ UFW: port 443 rule missing"
+    else
+        green "○ UFW: not active"
+    fi
+    
+    # SSL Certificate
+    CERT_FILE=$(find /var/lib/caddy/.local/share/caddy /root/.local/share/caddy -name "${domain}.crt" 2>/dev/null | head -1)
+    if [[ -n "$CERT_FILE" ]]; then
+        CERT_EXPIRY=$(openssl x509 -enddate -noout -in "$CERT_FILE" 2>/dev/null | cut -d= -f2)
+        green "✓ SSL certificate: valid until ${CERT_EXPIRY}"
+    else
+        red "✗ SSL certificate: not obtained"
+    fi
+    
+    # Client configs
+    [[ -f /root/naive/naive-client.json ]] && green "✓ Client config: /root/naive/naive-client.json" || red "✗ Client config: missing"
+    [[ -f /root/naive/naive-url.txt ]] && green "✓ Import link: /root/naive/naive-url.txt" || red "✗ Import link: missing"
+    
+    # fail2ban
+    if command -v fail2ban-client &>/dev/null && systemctl is-active --quiet fail2ban; then
+        green "✓ fail2ban: active"
+    else
+        green "○ fail2ban: not active"
+    fi
+    
+    # BBR
+    sysctl net.ipv4.tcp_congestion_control 2>/dev/null | grep -q "bbr" && green "✓ BBR: enabled" || green "○ BBR: not enabled"
+    
+    # External connectivity (тут ничего не пишем, только результат)
+    SERVER_IP=$(curl -s --max-time 3 ifconfig.me 2>/dev/null || echo "unknown")
+    if [[ "$SERVER_IP" != "unknown" ]]; then
+        if timeout 3 bash -c "echo >/dev/tcp/$SERVER_IP/443" 2>/dev/null; then
+            green "✓ Port 443: reachable from internet"
+        else
+            red "✗ Port 443: not reachable"
+        fi
+    else
+        green "○ Could not determine external IP"
+    fi
+	
+	yellow "═══════════════════════════════════════════════════════════════"
+}
+
+# =====================================
+# Function: Wait for SSL certificate
+# =====================================
+wait_for_ssl_certificate() {
+    local domain=$1
+    local max_wait=60
+    local waited=0
+    
+    CERT_DIRS=(
+        "/var/lib/caddy/.local/share/caddy/certificates/acme-v02.api.letsencrypt.org-directory/$domain"
+        "/var/lib/caddy/.local/share/caddy/certificates/acme.zerossl.com-v2-DV90/$domain"
+        "/root/.local/share/caddy/certificates/acme-v02.api.letsencrypt.org-directory/$domain"
+        "/root/.local/share/caddy/certificates/acme.zerossl.com-v2-DV90/$domain"
+    )
+    
+    while [[ $waited -lt $max_wait ]]; do
+        for cert_dir in "${CERT_DIRS[@]}"; do
+            if [[ -f "$cert_dir/$domain.crt" ]] && [[ -f "$cert_dir/$domain.key" ]]; then
+                return 0
+            fi
+        done
+        sleep 1
+        waited=$((waited + 1))
+    done
+    return 1
+}
+
+# =====================================
 # Function: NaiveProxy Installation (Basic)
 # =====================================
 install_naiveproxy() {
@@ -1570,6 +1691,8 @@ install_naiveproxy() {
         green "\nNaiveProxy is successfully installed and running!"
         echo "The client configuration is saved in /root/naive/"
         show_config
+		wait_for_ssl_certificate "$domain"
+        show_install_checklist 
     else
         red "Error starting Caddy! Check the logs: journalctl -u caddy -n 50"
         exit 1
@@ -1652,14 +1775,27 @@ show_config() {
         return 0
     fi
     
-    yellow "\n=== Client Configuration ==="
-    echo -e "${GREEN}JSON format (file: /root/naive/naive-client.json):${PLAIN}"
+	echo ""
+    yellow "═══════════════════════════════════════════════════════════════"
+    yellow "                    CLIENT CONFIGURATION"
+    yellow "═══════════════════════════════════════════════════════════════"
+    echo ""
+	
+    echo -e "${GREEN}JSON format:${PLAIN}"
+	echo ""
     cat /root/naive/naive-client.json
     echo ""
-    echo -e "${GREEN}Import link (file: /root/naive/naive-url.txt):${PLAIN}"
+    echo -e "${GREEN}Import link:${PLAIN}"
+	echo ""
     cat /root/naive/naive-url.txt
     echo ""
-
+	echo -e "${GREEN}Server:${PLAIN}    $domain"
+    echo -e "${GREEN}Port:${PLAIN}      $proxyport"
+    echo -e "${GREEN}Username:${PLAIN}  $proxyname"
+    echo -e "${GREEN}Password:${PLAIN}  $proxypwd"
+	echo ""
+	yellow "═══════════════════════════════════════════════════════════════"
+	echo ""
     if command -v qrencode &>/dev/null; then
         green "QR code for importing to your smartphone:"
         echo ""
