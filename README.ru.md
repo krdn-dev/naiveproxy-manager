@@ -25,9 +25,8 @@
 |---------|--------|
 | **Debian** | 11+ |
 | **Ubuntu** | 20.04+ |
-| **CentOS** | 8+ |
+| **CentOS / Rocky / Alma / Oracle** | 9+ |
 | **Fedora** | 37+ |
-| **AlmaLinux / Rocky Linux** | 8+ |
 
 ## 🚀 Быстрая установка
 ```bash
