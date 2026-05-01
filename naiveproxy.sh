@@ -794,7 +794,7 @@ EOF
     # =====================================
     # Main index.html
     # =====================================
-    cat > /var/www/html/index.html << 'EOF'
+    cat > /var/www/html/index.html << EOF
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -1134,7 +1134,7 @@ EOF
     # =====================================
     # About page
     # =====================================
-    cat > /var/www/html/about/index.html << 'EOF'
+    cat > /var/www/html/about/index.html << EOF
 <!DOCTYPE html>
 <html lang="en">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>About | ${domain^^}</title>
@@ -1214,7 +1214,7 @@ EOF
     # =====================================
     # Contact page
     # =====================================
-    cat > /var/www/html/contact/index.html << 'EOF'
+    cat > /var/www/html/contact/index.html << EOF
 <!DOCTYPE html>
 <html lang="en">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Contact | ${domain^^}</title>
@@ -1295,7 +1295,7 @@ EOF
     # =====================================
     # Blog post 1
     # =====================================
-    cat > /var/www/html/blog/security-update-2026.html << 'EOF'
+    cat > /var/www/html/blog/security-update-2026.html << EOF
 <!DOCTYPE html>
 <html lang="en">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Security Update | ${domain^^}</title>
@@ -1380,7 +1380,7 @@ EOF
     # =====================================
     # Blog post 2
     # =====================================
-    cat > /var/www/html/blog/network-expansion.html << 'EOF'
+    cat > /var/www/html/blog/network-expansion.html << EOF
 <!DOCTYPE html>
 <html lang="en">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Network Expansion | ${domain^^}</title>
@@ -1461,7 +1461,7 @@ EOF
     # =====================================
     # News page
     # =====================================
-    cat > /var/www/html/news/edge-location.html << 'EOF'
+    cat > /var/www/html/news/edge-location.html << EOF
 <!DOCTYPE html>
 <html lang="en">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>New Edge Location | ${domain^^}</title>
