@@ -8,23 +8,28 @@
 
 ## ✨ Features
 
-- 🚀 Auto-installation of the latest Go version
-- 🔧 Building Caddy with the forwardproxy plugin from source
-- 🔐 Real Let's Encrypt SSL certificates
-- 📱 Client config generation (JSON, URL, QR-code)
-- 🖥️ Support for all major Linux distributions
-- ⚡ Auto-enable BBR for better speed
-- 🛡️ DNS, port availability, and system requirements checks
+| Feature | Description |
+|---------|-------------|
+| 🚀 **Latest Go** | Auto‑installs the newest stable Go version |
+| 🔧 **Custom Caddy** | Builds Caddy + forwardproxy from source |
+| 🔐 **Let's Encrypt** | Real SSL certificates for your domain |
+| 📱 **Client configs** | JSON, URL, and QR‑code for easy import |
+| 🖥️ **Cross‑platform** | Works on Debian, Ubuntu, CentOS, Fedora, AlmaLinux, Rocky |
+| ⚡ **BBR** | Enables TCP BBR for better performance |
+| 🛡️ **Pre‑flight checks** | DNS, port, and system requirements validation |
+| 🛡️ **fail2ban** | Automatic SSH brute‑force protection |
+| 🎨 **Custom landing page** | Domain‑specific corporate placeholder page |
+| 🔄 **Auto‑updates** | Security updates (unattended‑upgrades / dnf‑automatic) |
 
 ## 📋 Supported Systems
 
 | System | Versions |
 |--------|----------|
-| Debian | 11+ |
-| Ubuntu | 20.04+ |
-| CentOS | 8+ |
-| Fedora | 37+ |
-| AlmaLinux / Rocky Linux | 8+ |
+| **Debian** | 11+ |
+| **Ubuntu** | 20.04+ |
+| **CentOS** | 8+ |
+| **Fedora** | 37+ |
+| **AlmaLinux / Rocky Linux** | 8+ |
 
 ## 🚀 Quick Installation
 
@@ -36,13 +41,13 @@ wget -O naiveproxy.sh https://raw.githubusercontent.com/krdn-dev/naiveproxy-inst
 
 | Option | Action |
 |-------|----------|
-| 1 | Install NaiveProxy |
-| 2 | Uninstall NaiveProxy |
-| 3 | Start NaiveProxy |
-| 4 | Stop NaiveProxy |
-| 5 | Restart NaiveProxy |
-| 6 | Show client config |
-| 0 | Exit |
+| **1** | Install NaiveProxy |
+| **2** | Uninstall NaiveProxy |
+| **3** | Start NaiveProxy |
+| **4** | Stop NaiveProxy |
+| **5** | Restart NaiveProxy |
+| **6** | Show client config |
+| **0** | Exit |
 
 ## 📲 Clients
 
