@@ -785,8 +785,8 @@ EOF
   <url><loc>https://${domain}/</loc><lastmod>2026-05-01</lastmod><changefreq>daily</changefreq><priority>1.0</priority></url>
   <url><loc>https://${domain}/about/</loc><lastmod>2026-04-15</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
   <url><loc>https://${domain}/contact/</loc><lastmod>2026-04-15</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
-  <url><loc>https://${domain}/blog/security-update-2026</loc><lastmod>2026-04-28</lastmod><changefreq>weekly</changefreq><priority>0.6</priority></url>
-  <url><loc>https://${domain}/blog/network-expansion</loc><lastmod>2026-04-20</lastmod><changefreq>weekly</changefreq><priority>0.6</priority></url>
+  <url><loc>https://${domain}/blog/security-update-2026.html</loc><lastmod>2026-04-28</lastmod><changefreq>weekly</changefreq><priority>0.6</priority></url>
+  <url><loc>https://${domain}/blog/network-expansion.html</loc><lastmod>2026-04-20</lastmod><changefreq>weekly</changefreq><priority>0.6</priority></url>
   <url><loc>https://${domain}/news/edge-location</loc><lastmod>2026-04-10</lastmod><changefreq>weekly</changefreq><priority>0.6</priority></url>
 </urlset>
 EOF
@@ -1033,7 +1033,7 @@ EOF
 
 <nav class="navbar">
     <div class="nav-container">
-        <div class="nav-logo">'${domain^^}'</div>
+        <div class="nav-logo">${domain^^}</div>
         <div class="nav-links">
             <a href="/">Home</a>
             <a href="/about/">About</a>
@@ -1051,7 +1051,7 @@ EOF
             <span>🛡️ DNSSEC</span>
             <span>🌍 Anycast</span>
         </div>
-        <div class="logo">'${domain^^}'</div>
+        <div class="logo">${domain^^}</div>
         <div class="subtitle">Enterprise Infrastructure</div>
     </div>
 
@@ -1061,7 +1061,7 @@ EOF
             <span>System Online | HA Cluster Active</span>
         </div>
         <h2>Corporate Portal</h2>
-        <p>Welcome to the '${domain}' corporate portal. High-availability infrastructure with geographic redundancy, DDoS protection, and real-time monitoring across all edge locations.</p>
+        <p>Welcome to the ${domain} corporate portal. High-availability infrastructure with geographic redundancy, DDoS protection, and real-time monitoring across all edge locations.</p>
     </div>
 
     <div class="features-grid">
@@ -1072,8 +1072,8 @@ EOF
     </div>
 
     <div class="blog-grid">
-        <div class="blog-card"><div class="blog-date"><span id="blogDate1"></span></div><div class="blog-title">Infrastructure Upgrade Complete</div><div class="blog-excerpt">All systems are now running on the latest hardware revision.</div><a href="/blog/security-update-2026" class="read-more">Read more →</a></div>
-        <div class="blog-card"><div class="blog-date"><span id="blogDate2"></span></div><div class="blog-title">New DDoS Protection Layer</div><div class="blog-excerpt">Enhanced mitigation capabilities now active across all edge nodes.</div><a href="/blog/network-expansion" class="read-more">Read more →</a></div>
+        <div class="blog-card"><div class="blog-date"><span id="blogDate1"></span></div><div class="blog-title">Infrastructure Upgrade Complete</div><div class="blog-excerpt">All systems are now running on the latest hardware revision.</div><a href="/blog/security-update-2026.html" class="read-more">Read more →</a></div>
+        <div class="blog-card"><div class="blog-date"><span id="blogDate2"></span></div><div class="blog-title">New DDoS Protection Layer</div><div class="blog-excerpt">Enhanced mitigation capabilities now active across all edge nodes.</div><a href="/blog/network-expansion.html" class="read-more">Read more →</a></div>
         <div class="blog-card"><div class="blog-date"><span id="blogDate3"></span></div><div class="blog-title">Edge Location Launched</div><div class="blog-excerpt">New points of presence added in Asia-Pacific region.</div><a href="/news/edge-location" class="read-more">Read more →</a></div>
     </div>
 
@@ -1092,7 +1092,7 @@ EOF
             <a href="https://www.cloudflare.com" target="_blank">Cloudflare</a>
             <a href="https://www.digitalocean.com" target="_blank">DigitalOcean</a>
         </div>
-        <div>© <span id="currentYear"></span> '${domain}' · Enterprise Infrastructure · All rights reserved</div>
+        <div>© <span id="currentYear"></span> ${domain} · Enterprise Infrastructure · All rights reserved</div>
         <div style="margin-top: 0.5rem;">Last updated: <span id="lastUpdated"></span></div>
     </div>
 </div>
@@ -1185,14 +1185,14 @@ EOF
 <body>
 <nav class="navbar">
     <div class="nav-container">
-        <div class="nav-logo">'${domain^^}'</div>
+        <div class="nav-logo">${domain^^}</div>
         <div class="nav-links"><a href="/">Home</a><a href="/about/">About</a><a href="/contact/">Contact</a><a href="/blog/">Blog</a></div>
     </div>
 </nav>
 <div class="container">
-    <h1>About '${domain}'</h1>
+    <h1>About ${domain}</h1>
     <div class="card">
-        <p><strong>'${domain}' Infrastructure</strong> is a global edge network provider delivering high-performance, secure, and reliable connectivity solutions for enterprises worldwide.</p>
+        <p><strong>${domain} Infrastructure</strong> is a global edge network provider delivering high-performance, secure, and reliable connectivity solutions for enterprises worldwide.</p>
         <p style="margin-top: 1rem;">Founded in 2018, we have grown to operate points of presence across North America, Europe, and Asia-Pacific, serving thousands of business customers with industry-leading SLAs.</p>
     </div>
     <div class="card">
@@ -1204,7 +1204,7 @@ EOF
             <li>2023: First data center in Asia-Pacific</li>
         </ul>
     </div>
-    <div class="footer"><div>© <span id="year"></span> '${domain}' · Enterprise Infrastructure</div></div>
+    <div class="footer"><div>© <span id="year"></span> ${domain} · Enterprise Infrastructure</div></div>
 </div>
 <script>document.getElementById('year').textContent = new Date().getFullYear();</script>
 </body>
@@ -1266,12 +1266,12 @@ EOF
 <body>
 <nav class="navbar">
     <div class="nav-container">
-        <div class="nav-logo">'${domain^^}'</div>
+        <div class="nav-logo">${domain^^}</div>
         <div class="nav-links"><a href="/">Home</a><a href="/about/">About</a><a href="/contact/">Contact</a><a href="/blog/">Blog</a></div>
     </div>
 </nav>
 <div class="container">
-    <h1>Contact '${domain}'</h1>
+    <h1>Contact ${domain}</h1>
     <div class="card">
         <div class="contact-info">
             <p><strong>📧 Email:</strong> <a href="mailto:admin@${domain}" style="color: #38bdf8;">admin@${domain}</a></p>
@@ -1285,7 +1285,7 @@ EOF
         <p>For sales inquiries, technical support, or partnership opportunities, please reach out to our global team.</p>
         <p style="margin-top: 1rem;">📞 <strong>Sales:</strong> +1 (888) 123-4567<br>🛠️ <strong>Technical Support:</strong> support@${domain}</p>
     </div>
-    <div class="footer"><div>© <span id="year"></span> '${domain}' · Enterprise Infrastructure</div></div>
+    <div class="footer"><div>© <span id="year"></span> ${domain} · Enterprise Infrastructure</div></div>
 </div>
 <script>document.getElementById('year').textContent = new Date().getFullYear();</script>
 </body>
@@ -1347,7 +1347,7 @@ EOF
 <body>
 <nav class="navbar">
     <div class="nav-container">
-        <div class="nav-logo">'${domain^^}'</div>
+        <div class="nav-logo">${domain^^}</div>
         <div class="nav-links"><a href="/">Home</a><a href="/about/">About</a><a href="/contact/">Contact</a><a href="/blog/">Blog</a></div>
     </div>
 </nav>
@@ -1365,7 +1365,7 @@ EOF
         </ul>
         <p>These improvements are already active for all customers and require no configuration changes on your end. The new system has successfully mitigated several large-scale attacks over the past week with zero customer impact.</p>
     </div>
-    <div class="footer"><div>© <span id="year"></span> '${domain}' · Enterprise Infrastructure</div></div>
+    <div class="footer"><div>© <span id="year"></span> ${domain} · Enterprise Infrastructure</div></div>
 </div>
 <script>
     document.getElementById('year').textContent = new Date().getFullYear();
@@ -1432,7 +1432,7 @@ EOF
 <body>
 <nav class="navbar">
     <div class="nav-container">
-        <div class="nav-logo">'${domain^^}'</div>
+        <div class="nav-logo">${domain^^}</div>
         <div class="nav-links"><a href="/">Home</a><a href="/about/">About</a><a href="/contact/">Contact</a><a href="/blog/">Blog</a></div>
     </div>
 </nav>
@@ -1451,7 +1451,7 @@ EOF
         </ul>
         <p>This expansion represents a 40% increase in our global capacity and brings total edge locations to over 50 worldwide. Customers in these regions will see reduced latency and improved throughput immediately.</p>
     </div>
-    <div class="footer"><div>© <span id="year"></span> '${domain}' · Enterprise Infrastructure</div></div>
+    <div class="footer"><div>© <span id="year"></span> ${domain} · Enterprise Infrastructure</div></div>
 </div>
 <script>document.getElementById('year').textContent = new Date().getFullYear();</script>
 </body>
@@ -1512,7 +1512,7 @@ EOF
 <body>
 <nav class="navbar">
     <div class="nav-container">
-        <div class="nav-logo">'${domain^^}'</div>
+        <div class="nav-logo">${domain^^}</div>
         <div class="nav-links"><a href="/">Home</a><a href="/about/">About</a><a href="/contact/">Contact</a><a href="/blog/">Blog</a></div>
     </div>
 </nav>
@@ -1524,7 +1524,7 @@ EOF
         <p>The new facility features redundant power, multiple carrier connections, and direct peering with major regional networks. Customers can expect up to 45% reduction in latency for traffic originating in the region.</p>
         <p>This location is now fully operational and accepting traffic. Please contact our sales team for specific connectivity options and custom peering arrangements.</p>
     </div>
-    <div class="footer"><div>© <span id="year"></span> '${domain}' · Enterprise Infrastructure</div></div>
+    <div class="footer"><div>© <span id="year"></span> ${domain} · Enterprise Infrastructure</div></div>
 </div>
 <script>document.getElementById('year').textContent = new Date().getFullYear();</script>
 </body>
