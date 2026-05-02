@@ -877,7 +877,7 @@ create_configs() {
     cat << EOF > /etc/caddy/Caddyfile
 {
     order forward_proxy before file_server
-    admin localhost:2019
+    admin 127.0.0.1:2019
 }
 
 :${proxyport}, ${domain}:${proxyport} {
