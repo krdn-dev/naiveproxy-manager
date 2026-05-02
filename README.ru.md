@@ -1,4 +1,4 @@
-# NaiveProxy Installer 
+# NaiveProxy Manager 
 
 **Автоматическая установка NaiveProxy на Linux сервер**
 
@@ -38,13 +38,13 @@
 
 ## 🚀 Быстрая установка
 ```bash
-wget -O naiveproxy.sh https://raw.githubusercontent.com/krdn-dev/naiveproxy-installer/main/naiveproxy.sh
+wget -O naiveproxy.sh https://raw.githubusercontent.com/krdn-dev/naiveproxy-manager/main/naiveproxy.sh
 chmod +x naiveproxy.sh
 sudo ./naiveproxy.sh
 ```
-или
+or
 ```bash
-wget -O naiveproxy.sh https://raw.githubusercontent.com/krdn-dev/naiveproxy-installer/main/naiveproxy.sh && bash naiveproxy.sh
+wget -O naiveproxy.sh https://raw.githubusercontent.com/krdn-dev/naiveproxy-manager/main/naiveproxy.sh && bash naiveproxy.sh
 ```
 
 ## 🛠️ Меню и управление  
