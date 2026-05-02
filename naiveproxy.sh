@@ -2152,7 +2152,7 @@ show_menu() {
     clear	
 	
     echo "#################################################"
-    echo -e "--${GREEN}NaiveProxy Installer${PLAIN}---------------------${BLUE}Kordan${PLAIN}--"
+    echo -e "--${GREEN}NaiveProxy Installer${PLAIN}-------------------${BLUE}Kordan${PLAIN}--"
     echo "#################################################"
 	echo ""
 	check_system_requirements
