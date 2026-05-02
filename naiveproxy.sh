@@ -2,7 +2,9 @@
 # ===========================================================================
 # Name:         NaiveProxy Secure Installer
 # Description:  The most advanced NaiveProxy installer — auto‑swap, fail2ban, 
-#               BBR, rate limiting, corporate site simulation, QR configs. 
+#               BBR, rate limiting, corporate site simulation, QR configs,
+#               custom SSH port, system maintenance, system info, 
+#               firewall (UFW/firewalld), auto‑updates, and limits tuning.
 #               Works on 7 Linux distros. One command.
 # Author:       Kordan (krdn-dev)
 # GitHub:       https://github.com/krdn-dev/naiveproxy-installer
@@ -26,12 +28,189 @@ yellow() { echo -e "${YELLOW}${1}${PLAIN}"; }
 blue() { echo -e "${BLUE}${1}${PLAIN}"; }
 
 # =====================================
+# SSH port (will be asked during installation)
+# =====================================
+SSH_PORT=22
+
+# =====================================
 # Definition of the system
 # =====================================
 REGEX=("debian" "ubuntu" "centos|red hat|kernel" "oracle linux" "alma" "rocky" "fedora")
 RELEASE=("Debian" "Ubuntu" "CentOS" "Oracle Linux" "AlmaLinux" "Rocky Linux" "Fedora")
 PACKAGE_UPDATE=("apt-get update" "apt-get update" "yum -y update" "yum -y update" "yum -y update" "yum -y update" "yum -y update")
 PACKAGE_INSTALL=("apt -y install" "apt -y install" "yum -y install" "yum -y install" "yum -y install" "yum -y install" "yum -y install")
+
+# =====================================
+# Function: Show system information
+# =====================================
+show_system_info() {
+    clear
+    echo "#################################################"
+    echo -e "--${GREEN}System Information${PLAIN}-------------------${BLUE}Kordan${PLAIN}--"
+    echo "#################################################"
+    echo ""
+    
+    # OS
+    echo -e "${GREEN}Operating System:${PLAIN} $SYSTEM $VERSION"
+    
+    # Architecture
+    echo -e "${GREEN}Architecture:${PLAIN} $(uname -m)"
+    
+    # Kernel
+    echo -e "${GREEN}Kernel:${PLAIN} $(uname -r)"
+    
+    # Uptime
+    echo -e "${GREEN}Uptime:${PLAIN} $(uptime -p | sed 's/up //')"
+    
+    # CPU
+    echo -e "${GREEN}CPU:${PLAIN} $(nproc) cores"
+    
+    # RAM
+    TOTAL_RAM=$(free -h | awk '/^Mem:/ {print $2}')
+    USED_RAM=$(free -h | awk '/^Mem:/ {print $3}')
+    FREE_RAM=$(free -h | awk '/^Mem:/ {print $4}')
+    RAM_PERCENT=$(free | awk '/^Mem:/ {printf "%.1f%%", $3/$2 * 100.0}')
+    echo -e "${GREEN}RAM:${PLAIN} Total: $TOTAL_RAM, Used: $USED_RAM, Free: $FREE_RAM ($RAM_PERCENT)"
+    
+    # Swap
+    if swapon --show 2>/dev/null | grep -q "/swapfile"; then
+        SWAP_SIZE=$(swapon --show --bytes | awk '/swapfile/ {print $3}' | numfmt --to=iec 2>/dev/null || echo "unknown")
+        echo -e "${GREEN}Swap:${PLAIN} $SWAP_SIZE (active)"
+    else
+        echo -e "${GREEN}Swap:${PLAIN} not configured"
+    fi
+    
+    # Disk
+    DISK_TOTAL=$(df -h / | awk 'NR==2 {print $2}')
+    DISK_USED=$(df -h / | awk 'NR==2 {print $3}')
+    DISK_FREE=$(df -h / | awk 'NR==2 {print $4}')
+    DISK_PERCENT=$(df / | awk 'NR==2 {print $5}')
+    echo -e "${GREEN}Disk (/):${PLAIN} Total: $DISK_TOTAL, Used: $DISK_USED, Free: $DISK_FREE ($DISK_PERCENT)"
+    
+    # Network
+    SERVER_IP=$(curl -s --max-time 3 ifconfig.me 2>/dev/null || echo "unknown")
+    echo -e "${GREEN}External IP:${PLAIN} $SERVER_IP"
+    
+    # Active connections
+    CONNS=$(ss -t state established | wc -l)
+    echo -e "${GREEN}Active connections:${PLAIN} $CONNS"
+    
+    # Firewall
+    case $SYSTEM in
+        "Debian"|"Ubuntu")
+            if command -v ufw &>/dev/null && ufw status | grep -q "Status: active"; then
+                echo -e "${GREEN}Firewall:${PLAIN} UFW (active)"
+            else
+                echo -e "${GREEN}Firewall:${PLAIN} not active"
+            fi
+            ;;
+        "CentOS"|"Fedora"|"AlmaLinux"|"Rocky Linux"|"Oracle Linux")
+            if systemctl is-active --quiet firewalld 2>/dev/null; then
+                echo -e "${GREEN}Firewall:${PLAIN} firewalld (active)"
+            else
+                echo -e "${GREEN}Firewall:${PLAIN} not active"
+            fi
+            ;;
+        *)
+            echo -e "${GREEN}Firewall:${PLAIN} unknown"
+            ;;
+    esac
+    
+    # TCP congestion
+    if sysctl net.ipv4.tcp_congestion_control 2>/dev/null | grep -q "bbr"; then
+        echo -e "${GREEN}TCP congestion:${PLAIN} BBR"
+    else
+        echo -e "${GREEN}TCP congestion:${PLAIN} $(sysctl -n net.ipv4.tcp_congestion_control 2>/dev/null || echo 'unknown')"
+    fi
+    
+    # Service Status
+    echo ""
+    echo -e "${YELLOW}Service Status:${PLAIN}"
+    
+    if systemctl is-active --quiet caddy 2>/dev/null; then
+        echo -e "  ${GREEN}✓ Caddy: running${PLAIN}"
+    else
+        echo -e "  ${RED}✗ Caddy: not running${PLAIN}"
+    fi
+    
+    if command -v fail2ban-client &>/dev/null && systemctl is-active --quiet fail2ban 2>/dev/null; then
+        JAILED=$(fail2ban-client status sshd 2>/dev/null | grep "Currently banned:" | awk '{print $4}' || echo "0")
+        echo -e "  ${GREEN}✓ fail2ban: running (banned: $JAILED IPs)${PLAIN}"
+    else
+        echo -e "  ${RED}✗ fail2ban: not running${PLAIN}"
+    fi
+    
+    # NaiveProxy status
+    if is_naive_installed; then
+        echo -e "  ${GREEN}✓ NaiveProxy: installed${PLAIN}"
+        echo -e "  ${GREEN}  Config:${PLAIN} /root/naive/naive-client.json"
+    else
+        echo -e "  ${RED}✗ NaiveProxy: not installed${PLAIN}"
+    fi
+    
+    # Public ports (без localhost)
+    echo ""
+    echo -e "${YELLOW}Public ports (accessible from internet):${PLAIN}"
+    PUBLIC_PORTS=$(ss -tlnp 2>/dev/null | grep -v "127.0.0.1" | grep -v "::1" | awk '{print $4}' | grep -oE ':[0-9]+$' | sort -u | sed 's/://')
+    if [[ -n "$PUBLIC_PORTS" ]]; then
+        echo "$PUBLIC_PORTS" | sed 's/^/  /'
+    else
+        echo "  none"
+    fi
+   
+    echo ""
+	echo "#################################################"
+}
+
+# =====================================
+# Function: System maintenance (update, upgrade, clean)
+# =====================================
+system_maintenance() {
+    clear
+    echo "#################################################"
+    echo -e "--${GREEN}System Maintenance${PLAIN}-------------------${BLUE}Kordan${PLAIN}--"
+    echo "#################################################"
+    echo ""
+    
+    case $SYSTEM in
+        "Debian"|"Ubuntu")
+            yellow "Updating package lists ..."
+            apt-get update -qq
+            green "✓ Package lists updated"
+            
+            echo ""
+            yellow "Upgrading packages (full-upgrade) ..."
+            apt-get full-upgrade -y
+            green "✓ Packages upgraded"
+            
+            echo ""
+            yellow "Cleaning up ..."
+            apt-get autoremove -y
+            apt-get autoclean -y
+            green "✓ Cleanup completed"
+            ;;
+        "CentOS"|"Fedora"|"AlmaLinux"|"Rocky Linux"|"Oracle Linux")
+            yellow "Updating packages ..."
+            dnf update -y
+            green "✓ Packages updated"
+            
+            echo ""
+            yellow "Cleaning up old kernels and packages ..."
+            dnf autoremove -y
+            dnf clean all
+            package-cleanup --oldkernels --count=2 2>/dev/null || true
+            green "✓ Cleanup completed"
+            ;;
+        *)
+            yellow "Unknown OS — skipping maintenance"
+            ;;
+    esac
+    
+    green "✓ System maintenance completed!"
+	echo ""
+	echo "#################################################"
+    echo ""
+}
 
 # =====================================
 # Function: Check system requirements
@@ -101,7 +280,7 @@ check_system_requirements() {
             ;;
     esac
     
-    green "System: $SYSTEM $VERSION (supported)"
+    green "  $SYSTEM $VERSION"
 }
 
 # =====================================
@@ -112,12 +291,31 @@ setup_auto_updates() {
     
     case $SYSTEM in
         "Debian"|"Ubuntu")
-            ${PACKAGE_INSTALL[int]} unattended-upgrades -y 2>/dev/null
+            # Устанавливаем пакет
+            if ! dpkg-query -W -f='${Status}' unattended-upgrades 2>/dev/null | grep -q "install ok installed"; then
+                ${PACKAGE_INSTALL[int]} unattended-upgrades -y 2>/dev/null
+            fi
+            
+            # Basic settings (20auto-upgrades)
             cat > /etc/apt/apt.conf.d/20auto-upgrades << EOF
 APT::Periodic::Update-Package-Lists "1";
 APT::Periodic::Unattended-Upgrade "1";
 APT::Periodic::AutocleanInterval "7";
 EOF
+
+            # Detailed settings (50unattended-upgrades)
+            cat > /etc/apt/apt.conf.d/50unattended-upgrades << EOF
+Unattended-Upgrade::Allowed-Origins {
+    "\${distro_id}:\${distro_codename}";
+    "\${distro_id}:\${distro_codename}-security";
+    "\${distro_id}:\${distro_codename}-updates";
+};
+Unattended-Upgrade::AutoFixInterruptedDpkg "true";
+Unattended-Upgrade::MinimalSteps "true";
+Unattended-Upgrade::Remove-Unused-Dependencies "true";
+Unattended-Upgrade::Automatic-Reboot "false";
+EOF
+
             systemctl restart unattended-upgrades 2>/dev/null
             green "Unattended upgrades are enabled"
             ;;
@@ -139,27 +337,7 @@ EOF
 # Function: Setting up fail2ban (brute force protection)
 # =====================================
 setup_fail2ban() {
-    yellow "Configuring fail2ban to protect SSH ..."
-    
-    # Determine the current SSH port
-    SSH_PORT=$(ss -tlnp | grep -oP '(?<=:)\d+(?=.*sshd)' | head -n1)
-    [[ -z "$SSH_PORT" ]] && SSH_PORT=22
-    
-    # # ----- For CentOS/RHEL/Alma/Rocky, enable EPEL (needed for qrencode and fail2ban) -----
-	if [[ $SYSTEM == "CentOS" ]] || [[ $SYSTEM == "Fedora" ]] || [[ $SYSTEM == "AlmaLinux" ]] || [[ $SYSTEM == "Rocky Linux" ]]; then
-		if ! rpm -q epel-release &>/dev/null && ! rpm -q epel-next-release &>/dev/null; then
-			yellow "Connecting the EPEL repository for fail2ban ..."
-			${PACKAGE_INSTALL[int]} epel-release -y 2>/dev/null
-		fi
-	fi
-	
-	# ----- For Oracle Linux -----
-    if [[ $SYSTEM == "Oracle Linux" ]]; then
-        if ! dnf repolist | grep -q "ol10_developer_EPEL"; then
-            yellow "Connecting Oracle Linux EPEL repository ..."
-            ${PACKAGE_INSTALL[int]} oracle-epel-release-el10 -y 2>/dev/null
-        fi
-    fi
+    yellow "Configuring fail2ban to protect SSH (port: $SSH_PORT) ..."
     
     # Installing fail2ban
     if ! command -v fail2ban-client &>/dev/null; then
@@ -200,7 +378,7 @@ EOF
     systemctl restart fail2ban 2>/dev/null
     
     if systemctl is-active --quiet fail2ban; then
-        green "fail2ban is activated (protection against password guessing)"
+        green "fail2ban is activated (SSH port: $SSH_PORT)"
     else
         yellow "fail2ban is not activated (not critical)"
     fi
@@ -354,39 +532,82 @@ install_base_packages() {
         green "qrencode already installed"
     fi
     
-    # ----- Configure firewall -----
+    green "Basic packages are installed"
+}
+
+# =====================================
+# Function: Configure firewall
+# =====================================
+configure_firewall() {
+    yellow "Configuring firewall (SSH port: $SSH_PORT)..."
+    
     case $SYSTEM in
         "Debian"|"Ubuntu")
             if ! command -v ufw &>/dev/null; then
                 ${PACKAGE_INSTALL[int]} ufw -y 2>/dev/null
             fi
-			sed -i 's/IPV6=yes/IPV6=no/' /etc/default/ufw 2>/dev/null
+            sed -i 's/IPV6=yes/IPV6=no/' /etc/default/ufw 2>/dev/null
             ufw --force reset 2>/dev/null
             ufw default deny incoming 2>/dev/null
             ufw default allow outgoing 2>/dev/null
-            ufw allow 22/tcp 2>/dev/null
+            ufw allow "$SSH_PORT"/tcp 2>/dev/null
             ufw allow 80/tcp 2>/dev/null
             ufw allow 443/tcp 2>/dev/null
             ufw --force enable 2>/dev/null
-            green "UFW firewall configured"
+            green "UFW firewall configured (SSH port: $SSH_PORT)"
             ;;
         "CentOS"|"Fedora"|"AlmaLinux"|"Rocky Linux"|"Oracle Linux")
             if ! command -v firewall-cmd &>/dev/null; then
                 ${PACKAGE_INSTALL[int]} firewalld -y 2>/dev/null
             fi
             systemctl enable --now firewalld 2>/dev/null
-            firewall-cmd --permanent --add-port=22/tcp 2>/dev/null
+            firewall-cmd --permanent --add-port="$SSH_PORT"/tcp 2>/dev/null
             firewall-cmd --permanent --add-port=80/tcp 2>/dev/null
             firewall-cmd --permanent --add-port=443/tcp 2>/dev/null
             firewall-cmd --reload 2>/dev/null
-            green "firewalld configured"
+            green "firewalld configured (SSH port: $SSH_PORT)"
             ;;
         *)
             yellow "Unknown OS — firewall not configured automatically"
             ;;
     esac
+}
+
+# =====================================
+# Function: Change SSH port
+# =====================================
+change_ssh_port() {
+    # Определяем текущий активный порт SSH
+    CURRENT_SSH_PORT=$(ss -tlnp | grep -oP '(?<=:)\d+(?=.*sshd)' | head -n1)
+    [[ -z "$CURRENT_SSH_PORT" ]] && CURRENT_SSH_PORT=22
     
-    green "Basic packages are installed"
+    if [[ $SSH_PORT -eq $CURRENT_SSH_PORT ]]; then
+        green "○ SSH port already set to $SSH_PORT (no changes needed)"
+        return 0
+    fi
+    
+    yellow "Changing SSH port from $CURRENT_SSH_PORT to $SSH_PORT..."
+    
+    # Изменяем порт в конфиге
+    sed -i "s/^#Port $CURRENT_SSH_PORT/Port $SSH_PORT/" /etc/ssh/sshd_config
+    sed -i "s/^Port $CURRENT_SSH_PORT/Port $SSH_PORT/" /etc/ssh/sshd_config
+    
+    # Добавляем, если строки нет
+    if ! grep -q "^Port $SSH_PORT" /etc/ssh/sshd_config; then
+        echo "Port $SSH_PORT" >> /etc/ssh/sshd_config
+    fi
+    
+    # Проверяем конфиг перед перезапуском
+    if sshd -t; then
+        systemctl restart sshd
+        green "✓ SSH port changed from $CURRENT_SSH_PORT to $SSH_PORT"
+        echo ""
+        yellow "○ Current session remains active on port $CURRENT_SSH_PORT"
+        yellow "○ Next time connect using: ssh -p $SSH_PORT root@$SERVER_IP"
+    else
+        red "✗ SSH config test failed! Port not changed."
+        return 1
+    fi
 }
 
 # =====================================
@@ -470,53 +691,82 @@ input_parameters() {
     yellow "═══════════════════════════════════════════════════════════════"
     echo ""
     
-    # ----- Entering port -----
-    while true; do    
+    # ----- Entering SSH port -----
+    while true; do
         echo ""
-        blue "→ Port selection:"
-        echo "  [1] 443  (Recommended — best camouflage)"
-        echo "  [2] 8443 (Alternative — often allowed in corporate networks)"
-        echo "  [3] Custom port (range 1024-65535)"
+        blue "→ SSH configuration:"
+        echo "  [1] 22    (Default — standard SSH port)"
+        echo "  [2] Custom port (range 1024-65535)"
         echo ""
-        read -rp "$(green "Your choice [1-2-3]: ")" port_choice
+        read -rp "$(green "Your choice [1-2]: ")" ssh_choice
 
-        case $port_choice in
+        case $ssh_choice in
             1)
-                proxyport=443
-                green "✓ Port 443 selected"
+                SSH_PORT=22
+                green "✓ SSH port set to: 22"
                 break
                 ;;
             2)
-                proxyport=8443
-                green "✓ Port 8443 selected"
-                break
-                ;;
-            3)
-                read -rp "$(yellow "Enter custom port (1024-65535): ")" proxyport
-                if [[ "$proxyport" =~ ^[0-9]+$ ]] && [ "$proxyport" -ge 1024 ] && [ "$proxyport" -le 65535 ]; then
-                    green "✓ Port $proxyport selected"
+                read -rp "$(yellow "Enter custom SSH port (1024-65535): ")" ssh_port_input
+                if [[ "$ssh_port_input" =~ ^[0-9]+$ ]] && [ "$ssh_port_input" -ge 1024 ] && [ "$ssh_port_input" -le 65535 ]; then
+                    SSH_PORT="$ssh_port_input"
+                    green "✓ SSH port set to: $SSH_PORT"
                     break
                 else
                     red "✗ Error: Invalid port — must be number between 1024 and 65535"
                 fi
                 ;;
             *)
-                red "✗ Invalid choice — please select 1, 2, or 3"
+                red "✗ Invalid choice — please select 1 or 2"
                 ;;
         esac
     done
 
-    # ----- Checking port occupancy -----
-    if ss -tlnp | grep -q ":$proxyport "; then
-        red "✗ Port $proxyport is already in use by another process!"
-        exit 1
-    fi
+    # ----- Entering NaiveProxy port -----
+    while true; do    
+        echo ""
+        blue "→ NaiveProxy port selection:"
+        echo "  [1] 443  (Recommended — best camouflage)"
+        echo "  [2] 8443 (Alternative — often allowed in corporate networks)"
+        echo "  [3] Custom port (range 1024-65535)"
+        echo ""
+        read -rp "$(green "Your choice [1-3]: ")" port_choice
 
-    green "✓ Port $proxyport is free and available"
-    echo ""
+        case $port_choice in
+            1)
+                proxyport=443
+                ;;
+            2)
+                proxyport=8443
+                ;;
+            3)
+                read -rp "$(yellow "Enter custom port (1024-65535): ")" proxyport
+                if [[ ! "$proxyport" =~ ^[0-9]+$ ]] || [ "$proxyport" -lt 1024 ] || [ "$proxyport" -gt 65535 ]; then
+                    red "✗ Error: Invalid port — must be number between 1024 and 65535"
+                    continue
+                fi
+                ;;
+            *)
+                red "✗ Invalid choice — please select 1, 2, or 3"
+                continue
+                ;;
+        esac
+        
+        # ----- Checking port occupancy -----
+        if ss -tlnp | grep -q ":$proxyport "; then
+            red "✗ Port $proxyport is already in use by another process!"
+            echo ""
+            yellow "Please select another port:"
+            continue
+        fi
+        
+        green "✓ Port $proxyport selected and available"
+        break
+    done
 
-    # ----- Entering a domain -----
+    # ----- Entering domain -----
     while true; do
+        echo ""
         read -rp "$(blue "→ Enter your domain (e.g., example.com): ")" domain
         
         if [[ -z $domain ]]; then
@@ -548,10 +798,10 @@ input_parameters() {
         green "✓ DNS check passed: $domain → $DOMAIN_IP"
         break
     done
-    echo ""
 
     # ----- Entering email -----
     while true; do
+        echo ""
         read -rp "$(blue "→ Enter email for Let's Encrypt certificate: ")" email
         
         if [[ -z $email ]]; then
@@ -567,10 +817,10 @@ input_parameters() {
         green "✓ Email is valid: $email"
         break
     done
-    echo ""
 
     # ----- Entering username -----
     while true; do
+        echo ""
         read -rp "$(yellow "→ Enter username [press Enter for random]: ")" proxyname
         
         if [[ -z $proxyname ]]; then
@@ -590,10 +840,10 @@ input_parameters() {
             break
         fi
     done
-    echo ""
 
-    # ----- Entering a password -----
+    # ----- Entering password -----
     while true; do
+        echo ""
         read -rp "$(yellow "→ Enter password [press Enter for random]: ")" proxypwd
         
         if [[ -z $proxypwd ]]; then
@@ -613,8 +863,10 @@ input_parameters() {
             break
         fi
     done
-	
+    
+    echo ""
     green "✓ Configuration completed successfully!"
+    echo ""
 }	
 
 # =====================================
@@ -748,7 +1000,7 @@ optimize_sysctl() {
     yellow "Applying sysctl optimizations for proxy..."
     
     cat > /etc/sysctl.d/99-naiveproxy.conf << EOF
-# NaiveProxy optimizations
+# === NaiveProxy optimizations ===
 net.core.rmem_max = 67108864
 net.core.wmem_max = 67108864
 net.ipv4.tcp_rmem = 4096 87380 67108864
@@ -756,6 +1008,45 @@ net.ipv4.tcp_wmem = 4096 65536 67108864
 net.ipv4.tcp_tw_reuse = 1
 net.ipv4.tcp_fin_timeout = 10
 net.ipv4.ip_local_port_range = 1024 65535
+
+# === Basic anti-spoofing protection ===
+net.ipv4.conf.all.rp_filter = 1
+net.ipv4.conf.default.rp_filter = 1
+
+# === Protection against SYN-flood and DDoS ===
+net.ipv4.tcp_syncookies = 1
+net.ipv4.tcp_max_syn_backlog = 8192
+net.core.somaxconn = 16384
+net.core.netdev_max_backlog = 8192
+
+# === Protection against MITM, reconnaissance, and fingerprinting ===
+net.ipv4.conf.all.accept_source_route = 0
+net.ipv4.conf.default.accept_source_route = 0
+net.ipv4.conf.all.accept_redirects = 0
+net.ipv4.conf.default.accept_redirects = 0
+net.ipv4.conf.all.send_redirects = 0
+
+# === Disabling IPv6 completely (hard) ===
+net.ipv6.conf.all.disable_ipv6 = 1
+net.ipv6.conf.default.disable_ipv6 = 1
+net.ipv6.conf.lo.disable_ipv6 = 1
+
+# === ASLR – Exploit Resistance ===
+kernel.randomize_va_space = 2
+
+# === Network optimizations for high load ===
+net.ipv4.ip_local_port_range = 1024 65535
+net.ipv4.tcp_fin_timeout = 10
+net.ipv4.tcp_tw_reuse = 1
+net.ipv4.tcp_keepalive_time = 180
+net.ipv4.tcp_keepalive_intvl = 20
+net.ipv4.tcp_keepalive_probes = 5
+
+# === Reducing swapping ===
+vm.swappiness = 10
+
+# === Increasing limits ===
+fs.file-max = 2097152
 EOF
 
     sysctl -p /etc/sysctl.d/99-naiveproxy.conf 2>/dev/null
@@ -1570,11 +1861,11 @@ EOF
 # =====================================
 show_install_checklist() {
     echo ""
-	yellow "═══════════════════════════════════════════════════════════════"
+    yellow "═══════════════════════════════════════════════════════════════"
     yellow "                    INSTALLATION CHECKLIST"
     yellow "═══════════════════════════════════════════════════════════════"
-	echo ""
-	
+    echo ""
+    
     # Caddy
     if systemctl is-active --quiet caddy; then
         green "✓ Caddy service: running"
@@ -1583,18 +1874,46 @@ show_install_checklist() {
     fi
     
     # Ports
-    ss -tlnp | grep -q ":22 " && green "✓ Port 22: listening" || green "○ Port 22: not listening"
+	ss -tlnp | grep -q ":$SSH_PORT " && green "✓ Port $SSH_PORT (SSH): listening" || yellow "○ Port $SSH_PORT (SSH): not listening"
     ss -tlnp | grep -q ":80 " && green "✓ Port 80: listening" || green "○ Port 80: not listening"
     ss -tlnp | grep -q ":443 " && green "✓ Port 443: listening" || green "○ Port 443: not listening"
     
-    # UFW
-    if command -v ufw &>/dev/null && ufw status | grep -q "Status: active"; then
-		ufw status | grep -q "22/tcp.*ALLOW" && green "✓ UFW: port 80 allowed" || green "○ UFW: port 22 rule missing"
-        ufw status | grep -q "80/tcp.*ALLOW" && green "✓ UFW: port 80 allowed" || green "○ UFW: port 80 rule missing"
-        ufw status | grep -q "443/tcp.*ALLOW" && green "✓ UFW: port 443 allowed" || green "○ UFW: port 443 rule missing"
-    else
-        green "○ UFW: not active"
-    fi
+    # Firewall (UFW for Debian/Ubuntu, firewalld for RHEL)
+    case $SYSTEM in
+        "Debian"|"Ubuntu")
+            if command -v ufw &>/dev/null && ufw status | grep -q "Status: active"; then
+                ufw status | grep -q "$SSH_PORT/tcp.*ALLOW" && green "✓ UFW: port $SSH_PORT (SSH) allowed" || yellow "○ UFW: port $SSH_PORT (SSH) rule missing"
+                ufw status | grep -q "80/tcp.*ALLOW" && green "✓ UFW: port 80 allowed" || yellow "○ UFW: port 80 rule missing"
+                ufw status | grep -q "443/tcp.*ALLOW" && green "✓ UFW: port 443 allowed" || yellow "○ UFW: port 443 rule missing"
+            else
+                yellow "○ UFW: not active"
+            fi
+            ;;
+        "CentOS"|"Fedora"|"AlmaLinux"|"Rocky Linux"|"Oracle Linux")
+            if command -v firewall-cmd &>/dev/null && systemctl is-active --quiet firewalld; then
+                if firewall-cmd --list-ports 2>/dev/null | grep -q "$SSH_PORT/tcp"; then
+                    green "✓ firewalld: port $SSH_PORT (SSH) allowed"
+                else
+                    yellow "○ firewalld: port $SSH_PORT (SSH) not allowed"
+                fi
+                if firewall-cmd --list-ports 2>/dev/null | grep -q "80/tcp"; then
+                    green "✓ firewalld: port 80 allowed"
+                else
+                    yellow "○ firewalld: port 80 not allowed"
+                fi
+                if firewall-cmd --list-ports 2>/dev/null | grep -q "443/tcp"; then
+                    green "✓ firewalld: port 443 allowed"
+                else
+                    yellow "○ firewalld: port 443 not allowed"
+                fi
+            else
+                yellow "○ firewalld: not active"
+            fi
+            ;;
+        *)
+            yellow "○ Firewall: unknown system"
+            ;;
+    esac
     
     # SSL Certificate
     CERT_FILE=$(find /var/lib/caddy/.local/share/caddy /root/.local/share/caddy -name "${domain}.crt" 2>/dev/null | head -1)
@@ -1613,13 +1932,13 @@ show_install_checklist() {
     if command -v fail2ban-client &>/dev/null && systemctl is-active --quiet fail2ban; then
         green "✓ fail2ban: active"
     else
-        green "○ fail2ban: not active"
+        yellow "○ fail2ban: not active"
     fi
     
     # BBR
-    sysctl net.ipv4.tcp_congestion_control 2>/dev/null | grep -q "bbr" && green "✓ BBR: enabled" || green "○ BBR: not enabled"
+    sysctl net.ipv4.tcp_congestion_control 2>/dev/null | grep -q "bbr" && green "✓ BBR: enabled" || yellow "○ BBR: not enabled"
     
-    # External connectivity (тут ничего не пишем, только результат)
+    # External connectivity
     SERVER_IP=$(curl -s --max-time 3 ifconfig.me 2>/dev/null || echo "unknown")
     if [[ "$SERVER_IP" != "unknown" ]]; then
         if timeout 3 bash -c "echo >/dev/tcp/$SERVER_IP/443" 2>/dev/null; then
@@ -1628,10 +1947,11 @@ show_install_checklist() {
             red "✗ Port 443: not reachable"
         fi
     else
-        green "○ Could not determine external IP"
+        yellow "○ Could not determine external IP"
     fi
-	
-	yellow "═══════════════════════════════════════════════════════════════"
+    
+    echo ""
+    yellow "═══════════════════════════════════════════════════════════════"
 }
 
 # =====================================
@@ -1672,17 +1992,19 @@ install_naiveproxy() {
     check_hardware_requirements
     setup_swap 
     install_base_packages
-	setup_auto_updates
-    setup_fail2ban
-	increase_limits
+    setup_auto_updates
+    increase_limits
     optimize_sysctl
     disable_unnecessary_services
     install_go
     build_caddy
     input_parameters
+	change_ssh_port
+    setup_fail2ban
+    configure_firewall
     
     mkdir -p /etc/caddy /var/www/html
-	create_landing_page
+    create_landing_page
     create_configs
     create_systemd_service
     enable_bbr
@@ -1691,8 +2013,27 @@ install_naiveproxy() {
         green "\nNaiveProxy is successfully installed and running!"
         echo "The client configuration is saved in /root/naive/"
         show_config
-		wait_for_ssl_certificate "$domain"
+        wait_for_ssl_certificate "$domain"
         show_install_checklist 
+        
+        # SSH port change warning
+        if [[ $SSH_PORT -ne $CURRENT_SSH_PORT ]]; then
+            echo ""
+            yellow "═══════════════════════════════════════════════════════════════"
+            yellow "                   SSH PORT CHANGED"
+            yellow "═══════════════════════════════════════════════════════════════"
+            echo ""
+            yellow "○ SSH port has been changed from $CURRENT_SSH_PORT to $SSH_PORT"
+            yellow "○ Your current connection remains active on port $CURRENT_SSH_PORT"
+            echo ""
+            red "✗ NEXT TIME CONNECT USING:"
+            red "    ssh -p $SSH_PORT root@$SERVER_IP"
+            echo ""
+            yellow "○ Make sure your firewall allows port $SSH_PORT"
+            yellow "○ If you lose access, use VPS console to check"
+            echo ""
+            yellow "═══════════════════════════════════════════════════════════════"
+        fi
     else
         red "Error starting Caddy! Check the logs: journalctl -u caddy -n 50"
         exit 1
@@ -1808,22 +2149,29 @@ show_config() {
 # Function: Main Menu
 # =====================================
 show_menu() {
-    clear
+    clear	
+	
     echo "#################################################"
     echo -e "--${GREEN}NaiveProxy Installer${PLAIN}-------------------${BLUE}Kordan${PLAIN}--"
     echo "#################################################"
-    echo ""
-    echo -e " ${GREEN}1.${PLAIN} Install NaiveProxy"
-    echo -e " ${RED}2.${PLAIN} Uninstall NaiveProxy"
+	echo ""
+	check_system_requirements
+    echo " ----------------"
+    echo -e " ${GREEN}1.${PLAIN} Install"
+    echo -e " ${RED}2.${PLAIN} Uninstall"
+    echo " ----------------"
+    echo -e " ${GREEN}3.${PLAIN} Start"
+    echo -e " ${GREEN}4.${PLAIN} Stop"
+    echo -e " ${GREEN}5.${PLAIN} Restart"
+    echo " ----------------"
+    echo -e " ${GREEN}6.${PLAIN} Client config"
     echo " -------------"
-    echo -e " ${GREEN}3.${PLAIN} Start NaiveProxy"
-    echo -e " ${GREEN}4.${PLAIN} Stop NaiveProxy"
-    echo -e " ${GREEN}5.${PLAIN} Restart NaiveProxy"
-    echo " -------------"
-    echo -e " ${GREEN}6.${PLAIN} Show client config"
+    echo -e " ${GREEN}7.${PLAIN} System info"
+	echo -e " ${GREEN}8.${PLAIN} System maintenance"
     echo " -------------"
     echo -e " ${GREEN}0.${PLAIN} Exit"
     echo ""
+	echo "#################################################"
     
     local attempts=0
     local max_attempts=3
@@ -1833,12 +2181,13 @@ show_menu() {
             red "\nMaximum attempts $max_attempts exceeded. Exiting"
             exit 1
         fi
-        
-        read -rp " Your choice [0-6]: " answer
+		
+        echo ""
+        read -rp " Your choice [0-8]: " answer
         
         if [[ -z "$answer" ]]; then
             attempts=$((attempts + 1))
-            yellow "Error: Enter a number from 0 to 6. Attempt $attempts of $max_attempts"
+            yellow "Error: Enter a number from 0 to 8. Attempt $attempts of $max_attempts"
             continue
         fi
         
@@ -1848,9 +2197,9 @@ show_menu() {
             continue
         fi
         
-        if [[ $answer -lt 0 ]] || [[ $answer -gt 6 ]]; then
+        if [[ $answer -lt 0 ]] || [[ $answer -gt 8 ]]; then
             attempts=$((attempts + 1))
-            yellow "Error: Number must be between 0 and 6. Attempt $attempts of $max_attempts"
+            yellow "Error: Number must be between 0 and 8. Attempt $attempts of $max_attempts"
             continue
         fi
         
@@ -1864,6 +2213,8 @@ show_menu() {
         4) stop_naiveproxy ;;
         5) restart_naiveproxy ;;
         6) show_config ;;
+		7) show_system_info ;;
+		8) system_maintenance ;;
         0) clear && exit 0 ;;
     esac
     
@@ -1877,5 +2228,4 @@ show_menu() {
 # =====================================
 # Start script
 # =====================================
-check_system_requirements
 show_menu
