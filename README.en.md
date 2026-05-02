@@ -21,6 +21,12 @@
 | 🎨 **Corporate site simulation** | Full multi-page website (About, Blog, Contact, sitemap, robots.txt) |
 | 🔄 **Auto‑updates** | Security updates (unattended‑upgrades / dnf‑automatic) |
 | 💾 **Smart swap** | Auto‑creates swap file on low‑memory servers to prevent OOM kills |
+| 🔥 **Rate limiting** | DDoS and brute force protection in Caddy |
+| 🔧 **System maintenance** | Full system upgrade and cleanup (apt full-upgrade / dnf update) |
+| 🔒 **Custom SSH port** | Change SSH port with automatic firewall and fail2ban reconfiguration |
+| ⚙️ **Firewall support** | UFW for Debian/Ubuntu, firewalld for RHEL-based |
+| 📈 **System limits** | Increases open files limit to 2,097,152 |
+| 🧹 **Service cleanup** | Disables unnecessary services (avahi, bluetooth, cups, etc.) |
 
 ## 📋 Supported Systems
 
