@@ -40,8 +40,15 @@
 ## 🚀 Quick Installation
 
 ```bash
+wget -O naiveproxy.sh https://raw.githubusercontent.com/krdn-dev/naiveproxy-installer/main/naiveproxy.sh
+chmod +x naiveproxy.sh
+sudo ./naiveproxy.sh
+```
+or
+```bash
 wget -O naiveproxy.sh https://raw.githubusercontent.com/krdn-dev/naiveproxy-installer/main/naiveproxy.sh && bash naiveproxy.sh
 ```
+
 ## 🛠️ Menu & Management  
 ### After launching the script, you'll see a simple menu:
 
@@ -52,7 +59,9 @@ wget -O naiveproxy.sh https://raw.githubusercontent.com/krdn-dev/naiveproxy-inst
 | **3** | Start NaiveProxy |
 | **4** | Stop NaiveProxy |
 | **5** | Restart NaiveProxy |
-| **6** | Show client config |
+| **6** | Client config |
+| **7** | System info |
+| **8** | System maintenance |
 | **0** | Exit |
 
 ## 📲 Clients
