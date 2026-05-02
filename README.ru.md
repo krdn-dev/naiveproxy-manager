@@ -38,19 +38,28 @@
 
 ## 🚀 Быстрая установка
 ```bash
+wget -O naiveproxy.sh https://raw.githubusercontent.com/krdn-dev/naiveproxy-installer/main/naiveproxy.sh
+chmod +x naiveproxy.sh
+sudo ./naiveproxy.sh
+```
+или
+```bash
 wget -O naiveproxy.sh https://raw.githubusercontent.com/krdn-dev/naiveproxy-installer/main/naiveproxy.sh && bash naiveproxy.sh
 ```
+
 ## 🛠️ Меню и управление  
 ### После запуска скрипта вам будет доступно простое меню:
 
 | Пункт | Действие |
 |-------|----------|
-| **1** | Установить NaiveProxy |
-| **2** | Удалить NaiveProxy |
-| **3** | Запустить NaiveProxy |
-| **4** | Остановить NaiveProxy |
-| **5** | Перезапустить NaiveProxy |
-| **6** | Показать конфигурацию клиента |
+| **1** | Установить |
+| **2** | Удалить |
+| **3** | Запустить |
+| **4** | Остановить |
+| **5** | Перезапустить |
+| **6** | Конфигурация клиента |
+| **7** | Системная информация |
+| **8** | Обслуживание системы |
 | **0** | Выйти |
 
 ## 📲 Клиенты для подключения
