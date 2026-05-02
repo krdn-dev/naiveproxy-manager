@@ -1,4 +1,4 @@
-# NaiveProxy Installer
+# NaiveProxy Manager
 
 [![MIT License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)   [![Status](https://img.shields.io/badge/status-testing-yellow)](https://github.com/krdn-dev/naiveproxy-installer)
 
