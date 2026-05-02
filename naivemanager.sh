@@ -1,13 +1,13 @@
 #!/bin/bash
 # ===========================================================================
-# Name:         NaiveProxy Secure Installer
-# Description:  The most advanced NaiveProxy installer — auto‑swap, fail2ban, 
+# Name:         NaiveManager
+# Description:  The most advanced NaiveProxy Manager — auto‑swap, fail2ban, 
 #               BBR, rate limiting, corporate site simulation, QR configs,
 #               custom SSH port, system maintenance, system info, 
 #               firewall (UFW/firewalld), auto‑updates, and limits tuning.
 #               Works on 7 Linux distros. One command.
 # Author:       Kordan (krdn-dev)
-# GitHub:       https://github.com/krdn-dev/naiveproxy-installer
+# GitHub:       https://github.com/krdn-dev/naiveproxy-manager
 # License:      MIT
 # ===========================================================================
 
@@ -2242,7 +2242,7 @@ show_menu() {
     clear	
 	
     echo "#################################################"
-    echo -e "--${GREEN}NaiveProxy Installer${PLAIN}-------------------${BLUE}Kordan${PLAIN}--"
+    echo -e "--${GREEN}NaiveProxy Manager${PLAIN}-----------------${BLUE}Kordan${PLAIN}--"
     echo "#################################################"
 	echo ""
 	check_system_requirements
