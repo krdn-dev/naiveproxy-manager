@@ -10,11 +10,11 @@
 ## Quick Install
 
 ```bash
-wget -O naiveproxy.sh https://raw.githubusercontent.com/krdn-dev/naiveproxy-manager/main/naiveproxy.sh
-chmod +x naiveproxy.sh
-sudo ./naiveproxy.sh
+wget -O naivemanager.sh https://raw.githubusercontent.com/krdn-dev/naiveproxy-manager/main/naivemanager.sh
+chmod +x naivemanager.sh
+sudo ./naivemanager.sh
 ```
 or
 ```bash
-wget -O naiveproxy.sh https://raw.githubusercontent.com/krdn-dev/naiveproxy-manager/main/naiveproxy.sh && bash naiveproxy.sh
+wget -O naivemanager.sh https://raw.githubusercontent.com/krdn-dev/naiveproxy-installer/main/naivemanager.sh && bash naivemanager.sh
 ```
