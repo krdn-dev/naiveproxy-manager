@@ -46,7 +46,7 @@ PACKAGE_INSTALL=("apt -y install" "apt -y install" "yum -y install" "yum -y inst
 show_system_info() {
     clear
     echo "#################################################"
-    echo -e "--${GREEN}System Information${PLAIN}-------------------${BLUE}Kordan${PLAIN}--"
+    echo -e "--${GREEN}System Information${PLAIN}---------------------${BLUE}Kordan${PLAIN}--"
     echo "#################################################"
     echo ""
     
@@ -123,6 +123,20 @@ show_system_info() {
         echo -e "${GREEN}TCP congestion:${PLAIN} $(sysctl -n net.ipv4.tcp_congestion_control 2>/dev/null || echo 'unknown')"
     fi
     
+    # SSL Certificate
+    CERT_FILE=$(find /var/lib/caddy/.local/share/caddy /root/.local/share/caddy -name "${domain}.crt" 2>/dev/null | head -1)
+    if [[ -n "$CERT_FILE" ]] && [[ -f "$CERT_FILE" ]]; then
+        CERT_EXPIRY=$(openssl x509 -enddate -noout -in "$CERT_FILE" 2>/dev/null | cut -d= -f2)
+        CERT_ISSUER=$(openssl x509 -issuer -noout -in "$CERT_FILE" 2>/dev/null | sed 's/issuer=//')
+        CERT_DOMAIN=$(openssl x509 -subject -noout -in "$CERT_FILE" 2>/dev/null | grep -oP 'CN=\K[^,]+' || echo "$domain")
+        echo -e "${GREEN}SSL Certificate:${PLAIN}"
+        echo -e "  Domain: ${GREEN}$CERT_DOMAIN${PLAIN}"
+        echo -e "  Issuer: ${YELLOW}$CERT_ISSUER${PLAIN}"
+        echo -e "  Expires: ${YELLOW}$CERT_EXPIRY${PLAIN}"
+    else
+        echo -e "${GREEN}SSL Certificate:${PLAIN} ${RED}not obtained${PLAIN}"
+    fi
+    
     # Service Status
     echo ""
     echo -e "${YELLOW}Service Status:${PLAIN}"
@@ -159,7 +173,7 @@ show_system_info() {
     fi
    
     echo ""
-	echo "#################################################"
+    echo "#################################################"
 }
 
 # =====================================
@@ -168,7 +182,7 @@ show_system_info() {
 system_maintenance() {
     clear
     echo "#################################################"
-    echo -e "--${GREEN}System Maintenance${PLAIN}-------------------${BLUE}Kordan${PLAIN}--"
+    echo -e "--${GREEN}System Maintenance${PLAIN}---------------------${BLUE}Kordan${PLAIN}--"
     echo "#################################################"
     echo ""
     
@@ -396,23 +410,33 @@ check_hardware_requirements() {
     esac
     
     # ----- Checking RAM -----
-    TOTAL_RAM=$(free -m | awk '/^Mem:/{print $2}')
-    if [[ $TOTAL_RAM -lt 256 ]]; then
-        red "Not enough RAM: ${TOTAL_RAM}MB (minimum 256MB required))"
-        exit 1
-    elif [[ $TOTAL_RAM -lt 512 ]]; then
-        yellow "RAM ${TOTAL_RAM}MB may not be enough to compile Caddy"
+    TOTAL_RAM_MB=$(free -m | awk '/^Mem:/{print $2}')
+    
+    if [[ $TOTAL_RAM_MB -lt 1024 ]]; then
+        # Less than 1GB — shown in MB
+        if [[ $TOTAL_RAM_MB -lt 256 ]]; then
+            red "Not enough RAM: ${TOTAL_RAM_MB}MB (minimum 256MB required)"
+            exit 1
+        elif [[ $TOTAL_RAM_MB -lt 512 ]]; then
+            yellow "RAM ${TOTAL_RAM_MB}MB may not be enough to compile Caddy"
+        else
+            green "RAM: ${TOTAL_RAM_MB}MB"
+        fi
     else
-        green "RAM: ${TOTAL_RAM}MB"
+        # Greater than or equal to 1GB — display in GB
+        TOTAL_RAM_GB=$(echo "scale=1; $TOTAL_RAM_MB / 1024" | bc)
+        green "RAM: ${TOTAL_RAM_GB}GB"
     fi
     
     # ----- Checking free space -----
-    FREE_SPACE=$(df -m / | awk 'NR==2 {print $4}')
-    if [[ $FREE_SPACE -lt 1024 ]]; then
-        red "Not enough free space: ${FREE_SPACE}MB (minimum required 1GB)"
+    FREE_SPACE_MB=$(df -m / | awk 'NR==2 {print $4}')
+    FREE_SPACE_GB=$(echo "scale=1; $FREE_SPACE_MB / 1024" | bc)
+    
+    if [[ $FREE_SPACE_MB -lt 1024 ]]; then
+        red "Not enough free space: ${FREE_SPACE_MB}MB (minimum required 1GB)"
         exit 1
     else
-        green "Free space: ${FREE_SPACE}MB"
+        green "Free space: ${FREE_SPACE_GB}GB"
     fi
 }
 
@@ -933,6 +957,10 @@ EOF
 # Function: Create a systemd service
 # =====================================
 create_systemd_service() {
+	# Make sure the old Caddy process is killed and the port is free.
+    pkill -x caddy 2>/dev/null
+    sleep 2
+	
     cat << EOF > /etc/systemd/system/caddy.service
 [Unit]
 Description=Caddy web server (NaiveProxy)
@@ -957,6 +985,7 @@ EOF
 
     systemctl daemon-reload
     systemctl enable caddy
+	sleep 2
     systemctl start caddy
 }
 
@@ -1962,6 +1991,11 @@ wait_for_ssl_certificate() {
     local max_wait=60
     local waited=0
     
+    echo ""
+    yellow "○ Waiting for SSL certificate (up to ${max_wait} seconds) ..."
+    echo ""
+    printf "   "
+    
     CERT_DIRS=(
         "/var/lib/caddy/.local/share/caddy/certificates/acme-v02.api.letsencrypt.org-directory/$domain"
         "/var/lib/caddy/.local/share/caddy/certificates/acme.zerossl.com-v2-DV90/$domain"
@@ -1972,13 +2006,20 @@ wait_for_ssl_certificate() {
     while [[ $waited -lt $max_wait ]]; do
         for cert_dir in "${CERT_DIRS[@]}"; do
             if [[ -f "$cert_dir/$domain.crt" ]] && [[ -f "$cert_dir/$domain.key" ]]; then
+                echo ""
+                echo ""
+                green "✓ SSL certificate obtained (${waited} seconds)"
                 return 0
             fi
         done
-        sleep 1
-        waited=$((waited + 1))
+        
+        if [[ $((waited % 2)) -eq 0 ]] && [[ $waited -gt 0 ]]; then
+            printf "."
+        fi
+        
+        sleep 2
+        waited=$((waited + 2))
     done
-    return 1
 }
 
 # =====================================
@@ -1986,7 +2027,7 @@ wait_for_ssl_certificate() {
 # =====================================
 install_naiveproxy() {
     green "I'm starting the installation of NaiveProxy ..."
-    
+    CURRENT_SSH_PORT=22
     yellow "\nChecking system requirements ..."
     check_system_requirements
     check_hardware_requirements
@@ -2046,12 +2087,28 @@ install_naiveproxy() {
 uninstall_naiveproxy() {
     yellow "Removing NaiveProxy ..."
     
+    # We stop the Caddy and wait for the port to clear.
     systemctl stop caddy 2>/dev/null
     systemctl disable caddy 2>/dev/null
     
+    # We're waiting for the Caddy to actually stop.
+    sleep 3
+    
+    # Force kill the process if it is still hanging.
+    pkill -x caddy 2>/dev/null
+    sleep 1
+    
+    # Delete the main files
     rm -rf /etc/caddy /root/naive /usr/bin/caddy /etc/systemd/system/caddy.service
+    
+    # Delete Caddy data (certificates, settings)
+    rm -rf /var/lib/caddy 2>/dev/null
+    rm -rf /root/.local/share/caddy 2>/dev/null
+    
+    # Remove temporary files and Go modules (but not Go itself)
     rm -rf /root/go /root/tmp
     
+    # Remove Go from PATH in .bashrc
     sed -i '/export PATH=\$PATH:\/usr\/local\/go\/bin/d' ~/.bashrc
     
     systemctl daemon-reload
@@ -2077,9 +2134,17 @@ start_naiveproxy() {
         yellow "NaiveProxy is not installed! Please install it first (step 1)"
         return 0
     fi
+    
     systemctl start caddy
-    systemctl enable caddy 2>/dev/null
-    green "NaiveProxy is launched"
+    
+    # Ждём и проверяем, запустился ли
+    sleep 3
+    if systemctl is-active --quiet caddy; then
+        green "NaiveProxy is launched"
+    else
+        red "Failed to start Caddy. Check logs: journalctl -u caddy -n 30"
+        return 1
+    fi
 }
 
 # =====================================
@@ -2146,6 +2211,31 @@ show_config() {
 }
 
 # =====================================
+# Function: Reboot server
+# =====================================
+reboot_server() {
+    clear
+    echo "#################################################"
+    echo -e "--${GREEN}Reboot Server${PLAIN}--------------------------${BLUE}Kordan${PLAIN}--"
+    echo "#################################################"
+    echo ""
+    
+    yellow "○ This will reboot the server NOW"
+    yellow "○ All running services will be stopped"
+    yellow "○ You will be disconnected"
+    echo ""
+    read -rp "Are you sure you want to reboot? [y/N]: " confirm
+    
+    if [[ "$confirm" =~ ^[Yy]$ ]]; then
+        green "✓ Rebooting server..."
+        sleep 2
+        reboot
+    else
+        yellow "○ Reboot cancelled"
+    fi
+}
+
+# =====================================
 # Function: Main Menu
 # =====================================
 show_menu() {
@@ -2168,6 +2258,7 @@ show_menu() {
     echo " -------------"
     echo -e " ${GREEN}7.${PLAIN} System info"
 	echo -e " ${GREEN}8.${PLAIN} System maintenance"
+	echo -e " ${GREEN}9.${PLAIN} Reboot server"
     echo " -------------"
     echo -e " ${GREEN}0.${PLAIN} Exit"
     echo ""
@@ -2183,11 +2274,11 @@ show_menu() {
         fi
 		
         echo ""
-        read -rp " Your choice [0-8]: " answer
+        read -rp " Your choice [0-9]: " answer
         
         if [[ -z "$answer" ]]; then
             attempts=$((attempts + 1))
-            yellow "Error: Enter a number from 0 to 8. Attempt $attempts of $max_attempts"
+            yellow "Error: Enter a number from 0 to 9. Attempt $attempts of $max_attempts"
             continue
         fi
         
@@ -2197,9 +2288,9 @@ show_menu() {
             continue
         fi
         
-        if [[ $answer -lt 0 ]] || [[ $answer -gt 8 ]]; then
+        if [[ $answer -lt 0 ]] || [[ $answer -gt 9 ]]; then
             attempts=$((attempts + 1))
-            yellow "Error: Number must be between 0 and 8. Attempt $attempts of $max_attempts"
+            yellow "Error: Number must be between 0 and 9. Attempt $attempts of $max_attempts"
             continue
         fi
         
@@ -2215,6 +2306,7 @@ show_menu() {
         6) show_config ;;
 		7) show_system_info ;;
 		8) system_maintenance ;;
+		9) reboot_server ;;
         0) clear && exit 0 ;;
     esac
     
