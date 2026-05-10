@@ -65,7 +65,7 @@ install_webghost() {
     fi
 
     # 2. Попытка скачать из GitHub Releases
-    local download_url="https://github.com/krdn-dev/naiveproxy-manager/releases/latest/download/webghost-linux-amd64"
+    local download_url="https://github.com/твой-репозиторий/releases/latest/download/webghost-linux-amd64"
     yellow "Downloading WebGhost from ${download_url} ..."
     curl -L --fail -o /usr/local/bin/webghost "$download_url" 2>/dev/null
 
@@ -1311,15 +1311,7 @@ check_system_requirements() {
         exit 1
     fi
 
-    # Проверка обязательных утилит
-    for cmd in systemctl grep awk curl; do
-        if ! command -v "$cmd" &>/dev/null; then
-            red "Required command '$cmd' not found. Install it first."
-            exit 1
-        fi
-    done
-
-    # Определение ОС (уже существующий код)
+    # Определение ОС – должно быть перед установкой пакетов
     CMD=("$(grep -i pretty_name /etc/os-release 2>/dev/null | cut -d \" -f2)" "$(hostnamectl 2>/dev/null | grep -i system | cut -d : -f2)" "$(lsb_release -sd 2>/dev/null)" "$(grep -i description /etc/lsb-release 2>/dev/null | cut -d \" -f2)" "$(grep . /etc/redhat-release 2>/dev/null)" "$(grep . /etc/issue 2>/dev/null | cut -d \\ -f1 | sed '/^[ ]*$/d')")
     
     for i in "${CMD[@]}"; do
@@ -1340,6 +1332,26 @@ check_system_requirements() {
     elif [[ -f /etc/rocky-release ]]; then
         SYSTEM="Rocky Linux"
     fi
+
+    # Проверка и автоустановка обязательных утилит
+    for cmd in curl; do
+        if ! command -v "$cmd" &>/dev/null; then
+            yellow "Command '$cmd' not found. Attempting to install..."
+            case $SYSTEM in
+                "Debian"|"Ubuntu")
+                    apt-get update -qq && apt-get install -y -qq "$cmd" 2>/dev/null
+                    ;;
+                "CentOS"|"Fedora"|"AlmaLinux"|"Rocky Linux"|"Oracle Linux")
+                    dnf install -y "$cmd" 2>/dev/null
+                    ;;
+            esac
+            if ! command -v "$cmd" &>/dev/null; then
+                red "Failed to install '$cmd'. Please install it manually and rerun the script."
+                exit 1
+            fi
+            green "✓ '$cmd' installed"
+        fi
+    done
     
     # Проверка версии (уже существующий код)
     case $SYSTEM in
@@ -2547,7 +2559,7 @@ show_install_checklist() {
     fi
 
     # Activity simulation
-    if systemctl is-active --quiet webghost-activity.timer 2>/dev/null; then
+    if systemctl is-active --quiet website-activity.timer 2>/dev/null; then
         green "✓ Activity simulation: active (hourly)"
     else
         yellow "○ Activity simulation: not running"
