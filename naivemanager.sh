@@ -65,7 +65,7 @@ install_webghost() {
     fi
 
     # 2. Попытка скачать из GitHub Releases
-    local download_url="https://github.com/krdn-dev/naiveproxy-manager/releases/latest/download/webghost-linux-amd64"
+    local download_url="https://github.com/krdn-dev/naiveproxy-manager/releases/download/v1.0/webghost-linux-amd64"
     yellow "Downloading WebGhost from ${download_url} ..."
     curl -L --fail -o /usr/local/bin/webghost "$download_url" 2>/dev/null
 
