@@ -3451,8 +3451,8 @@ setup_custom_prompt() {
 # Function: Main Menu
 # =====================================
 show_menu() {
+	check_system_requirements
     show_header
-    check_system_requirements
     
     echo -e " ${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${PLAIN}"
     echo -e " ${GREEN}    Proxy Management${PLAIN}"
