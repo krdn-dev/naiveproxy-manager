@@ -2559,7 +2559,7 @@ show_install_checklist() {
     fi
 
     # Activity simulation
-    if systemctl is-active --quiet website-activity.timer 2>/dev/null; then
+    if systemctl is-active --quiet webghost-activity.timer 2>/dev/null; then
         green "✓ Activity simulation: active (hourly)"
     else
         yellow "○ Activity simulation: not running"
