@@ -101,8 +101,8 @@ Technically, any server that responds to HTTPS requests will work. However, for 
 This information is intentionally not disclosed. The less detail about internal algorithms and templates reaches the public domain, the harder it is for Deep Packet Inspection (DPI) systems to develop countermeasures. Developers on "the other side" also read documentation, so the most effective settings stay inside the code.
 
 ### How can I verify that WebGhost is working and traffic imitation is active?
-All activity is logged to `/var/log/website-activity.log` 
-To view the accumulated records, run the following command in the terminal: ```cat /var/log/website-activity.log```
+All activity is logged to `/var/log/webghost-activity.log` 
+To view the accumulated records, run the following command in the terminal: ```cat /var/log/webghost-activity.log```
 
 In the log you will see:
 page visits (HTTP 200), requests to resources (favicon.ico, style.css, images), User‑Agent rotation and emulation of different browsers, background noise (rare requests to non‑existent pages), and much more.
