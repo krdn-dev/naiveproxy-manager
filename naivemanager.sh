@@ -2370,103 +2370,6 @@ wait_for_ssl_certificate() {
 }
 
 # =====================================
-# Function: Create website structure via WebGhost
-# =====================================
-create_landing_page() {
-    yellow "Creating complete website structure for ${domain} via WebGhost ..."
-
-    # Явная проверка, что domain не пуст
-    if [[ -z "${domain}" ]]; then
-        red "✗ Domain variable is empty – cannot create landing page"
-        return 1
-    fi
-
-    /usr/local/bin/webghost --domain="$domain" setup-site
-    if [[ $? -ne 0 ]]; then
-        red "✗ WebGhost setup-site failed"
-        return 1
-    fi
-
-    green "✓ Website structure created for domain ${domain}"
-}
-
-# =====================================
-# Function: Setup traffic imitation via WebGhost
-# =====================================
-setup_random_activity() {
-    # Скрипт-обёртка для systemd
-    cat > /usr/local/bin/webghost-activity.sh << WEOF
-#!/bin/bash
-source /root/naive/runtime.env
-exec /usr/local/bin/webghost \
-    --domain="${domain}" \
-    --remote="${REMOTE_SERVER:-}" \
-    --log=/var/log/webghost-activity.log \
-    simulate
-WEOF
-    chmod +x /usr/local/bin/webghost-activity.sh
-
-    # Systemd service
-    cat > /etc/systemd/system/webghost-activity.service << EOF
-[Unit]
-Description=WebGhost traffic simulation
-After=network-online.target
-
-[Service]
-Type=oneshot
-User=root
-ExecStart=/usr/local/bin/webghost-activity.sh
-StandardOutput=journal
-StandardError=journal
-TimeoutStartSec=2400
-EOF
-
-    # Systemd timer (каждые 45 минут днём, каждые 2 часа ночью)
-    cat > /etc/systemd/system/webghost-activity.timer << EOF
-[Unit]
-Description=WebGhost activity timer
-Requires=webghost-activity.service
-
-[Timer]
-OnCalendar=*:0/45
-OnCalendar=*-*-* 23..05:0/120
-RandomizedDelaySec=1200
-Persistent=true
-
-[Install]
-WantedBy=timers.target
-EOF
-
-    systemctl daemon-reload
-    systemctl enable webghost-activity.timer
-    systemctl restart webghost-activity.timer
-
-    # Лог-ротация
-    cat > /etc/logrotate.d/webghost-activity << EOF
-/var/log/webghost-activity.log {
-    monthly
-    rotate 12
-    compress
-    missingok
-    notifempty
-    create 644 root root
-    postrotate
-        systemctl restart webghost-activity.timer 2>/dev/null || true
-    endscript
-}
-EOF
-
-    # Пробный запуск в фоне для проверки
-    /usr/local/bin/webghost-activity.sh &
-
-    echo ""
-    green "✓ WebGhost traffic simulation installed!"
-    echo "  Timer: every 45 min (day) / 2 hours (night)"
-    echo "  Log:   tail -f /var/log/webghost-activity.log"
-}
-
-
-# =====================================
 # Function: Show installation checklist
 # =====================================
 show_install_checklist() {
@@ -2642,7 +2545,9 @@ install_naiveproxy() {
         red "✗ WebGhost installation failed – aborting"
         exit 1
     fi
-    create_landing_page
+	
+    /usr/local/bin/webghost --domain="$domain" --remote="${REMOTE_SERVER:-}" --log=/var/log/webghost-activity.log install
+	
     create_configs
     create_systemd_service
     enable_bbr
@@ -2679,7 +2584,6 @@ install_naiveproxy() {
         fi
           
 		setup_auto_update_cron
-		setup_random_activity
 		setup_naiveguard
 		setup_custom_prompt
 		
