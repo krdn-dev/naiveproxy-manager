@@ -1288,7 +1288,7 @@ check_system_requirements() {
     # Проверка занятости apt/dpkg
     if command -v dpkg &>/dev/null; then
         if pgrep -x "apt" > /dev/null || pgrep -x "dpkg" > /dev/null || pgrep -x "apt-get" > /dev/null; then
-            red "Another apt/dpkg process is running. Wait or kill it."
+            red "Another apt/dpkg process is running. Wait or kill it"
             exit 1
         fi
     fi
@@ -1336,7 +1336,7 @@ check_system_requirements() {
     # Проверка и автоустановка обязательных утилит
     for cmd in curl; do
         if ! command -v "$cmd" &>/dev/null; then
-            yellow "Command '$cmd' not found. Attempting to install..."
+            yellow "Command '$cmd' not found. Attempting to install ..."
             case $SYSTEM in
                 "Debian"|"Ubuntu")
                     apt-get update -qq && apt-get install -y -qq "$cmd" 2>/dev/null
@@ -1346,7 +1346,7 @@ check_system_requirements() {
                     ;;
             esac
             if ! command -v "$cmd" &>/dev/null; then
-                red "Failed to install '$cmd'. Please install it manually and rerun the script."
+                red "Failed to install '$cmd'. Please install it manually and rerun the script"
                 exit 1
             fi
             green "✓ '$cmd' installed"
@@ -2401,7 +2401,7 @@ source /root/naive/runtime.env
 exec /usr/local/bin/webghost \
     --domain="${domain}" \
     --remote="${REMOTE_SERVER:-}" \
-    --log=/var/log/website-activity.log \
+    --log=/var/log/webghost-activity.log \
     simulate
 WEOF
     chmod +x /usr/local/bin/webghost-activity.sh
@@ -2442,8 +2442,8 @@ EOF
     systemctl restart webghost-activity.timer
 
     # Лог-ротация
-    cat > /etc/logrotate.d/website-activity << EOF
-/var/log/website-activity.log {
+    cat > /etc/logrotate.d/webghost-activity << EOF
+/var/log/webghost-activity.log {
     monthly
     rotate 12
     compress
@@ -2462,7 +2462,7 @@ EOF
     echo ""
     green "✓ WebGhost traffic simulation installed!"
     echo "  Timer: every 45 min (day) / 2 hours (night)"
-    echo "  Log:   tail -f /var/log/website-activity.log"
+    echo "  Log:   tail -f /var/log/webghost-activity.log"
 }
 
 
@@ -2720,7 +2720,7 @@ uninstall_naiveproxy() {
     yellow "  - Caddy service and binary"
     yellow "  - SSL certificates"
     yellow "  - Client configurations"
-	yellow "  - Random website activity timer"
+	yellow "  - Random webghost activity timer"
     echo ""
     
     # Показываем, что будет сохранено
@@ -2737,8 +2737,8 @@ uninstall_naiveproxy() {
     systemctl disable webghost-activity.timer 2>/dev/null
     rm -f /etc/systemd/system/webghost-activity.{service,timer}
     rm -f /usr/local/bin/webghost-activity.sh
-    rm -f /var/log/website-activity.log
-    rm -f /etc/logrotate.d/website-activity
+    rm -f /var/log/webghost-activity.log
+    rm -f /etc/logrotate.d/webghost-activity
     rm -f /usr/local/bin/webghost
 	rm -rf /var/www/html/*
     systemctl daemon-reload
@@ -3451,7 +3451,6 @@ setup_custom_prompt() {
 # Function: Main Menu
 # =====================================
 show_menu() {
-	check_system_requirements
     show_header
     
     echo -e " ${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${PLAIN}"
