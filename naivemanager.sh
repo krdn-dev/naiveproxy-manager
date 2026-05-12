@@ -1628,6 +1628,11 @@ install_base_packages() {
     else
         green "qrencode already installed"
     fi
+	
+	if ! command -v dos2unix &>/dev/null; then
+        yellow "Installing dos2unix ..."
+        ${PACKAGE_INSTALL[int]} dos2unix -y 2>/dev/null || true
+    fi
     
     green "Basic packages are installed"
 }
@@ -2035,38 +2040,57 @@ build_caddy() {
     export GOBIN=/root/go/bin
     export PATH=$PATH:/usr/local/go/bin:$GOBIN
 
-    # Создаём временную директорию заранее (нужна и для go install, и для xcaddy)
     mkdir -p /root/tmp
     export TMPDIR=/root/tmp
 
-    # Устанавливаем xcaddy, если его ещё нет
     if ! command -v xcaddy &>/dev/null; then
-        yellow "Installing xcaddy..."
+        echo "→ Installing xcaddy ..."
         for i in 1 2 3; do
             go install github.com/caddyserver/xcaddy/cmd/xcaddy@latest && break
             sleep 3
         done
         if ! command -v xcaddy &>/dev/null; then
-            red "Failed to install xcaddy after 3 attempts. Check Go environment and internet."
+            red "✗ Failed to install xcaddy"
             return 1
         fi
+        green "✓ xcaddy installed"
     fi
 
-    yellow "Building Caddy with the forwardproxy plugin (may take 3-5 minutes) ..."
+    echo ""
+    yellow "→ Building Caddy (usually 1-5 minutes) ..."
+
+    local logfile="/tmp/caddy-build-$$.log"
     xcaddy build \
         --with github.com/caddyserver/forwardproxy@caddy2=github.com/klzgrad/forwardproxy@naive \
         --with github.com/mholt/caddy-ratelimit \
         --with github.com/rushiiMachine/caddy-ja3 \
         --with github.com/rushiiMachine/caddy-deflate \
         --with github.com/ueffel/caddy-brotli \
-        --with github.com/mholt/caddy-l4
+        --with github.com/mholt/caddy-l4 \
+        > "$logfile" 2>&1 &
+    local build_pid=$!
 
-    if [[ -f ./caddy ]]; then
+    #local spin='⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏'
+	local spin='-\|/'
+    local i=0
+    while kill -0 $build_pid 2>/dev/null; do
+        printf "\r   %s Building Caddy ... " "${spin:i++%${#spin}:1}"
+        sleep 0.2
+    done
+    printf "\r                              \r"
+
+    wait $build_pid
+    local build_status=$?
+
+    if [[ $build_status -eq 0 ]] && [[ -f ./caddy ]]; then
         mv -f ./caddy /usr/bin/caddy
         chmod +x /usr/bin/caddy
         green "✓ Caddy build successful"
+        rm -f "$logfile"
     else
-        red "✗ Caddy build failed! ./caddy not found."
+        red "✗ Caddy build failed!"
+        yellow "  Log: $logfile"
+        tail -20 "$logfile"
         return 1
     fi
 }
