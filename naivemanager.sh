@@ -44,39 +44,46 @@ PACKAGE_UPDATE=("apt-get update" "apt-get update" "yum -y update" "yum -y update
 PACKAGE_INSTALL=("apt -y install" "apt -y install" "yum -y install" "yum -y install" "yum -y install" "yum -y install" "yum -y install")
 
 # =====================================
-# Function: Install precompiled WebGhost binary
+# Function: Install precompiled WebGhost binary + full setup
 # =====================================
 install_webghost() {
     yellow "Installing WebGhost (precompiled binary) ..."
 
-    # Уже установлен?
-    if [[ -f /usr/local/bin/webghost ]]; then
+    # Создаём необходимые директории
+    mkdir -p /etc/caddy /var/www/html
+
+    # Доставка бинарника
+    if [[ ! -f /usr/local/bin/webghost ]]; then
+        local script_dir="$(cd "$(dirname "$0")" && pwd)"
+        if [[ -f "$script_dir/webghost" ]]; then
+            cp "$script_dir/webghost" /usr/local/bin/webghost
+            chmod +x /usr/local/bin/webghost
+            green "✓ Installed WebGhost from local directory"
+        else
+            local download_url="https://github.com/krdn-dev/webghost/releases/latest/download/webghost-linux-amd64"
+            yellow "Downloading WebGhost from ${download_url} ..."
+            curl -L --fail -o /usr/local/bin/webghost "$download_url" 2>/dev/null
+            if [[ $? -ne 0 || ! -s /usr/local/bin/webghost ]]; then
+                red "✗ Failed to download WebGhost"
+                red "✗ Please place webghost binary in /usr/local/bin/ and rerun the installer"
+                return 1
+            fi
+            chmod +x /usr/local/bin/webghost
+            green "✓ WebGhost installed to /usr/local/bin/webghost"
+        fi
+    else
         green "✓ WebGhost already installed"
-        return 0
     fi
 
-    # 1. Попытка скопировать из локальной папки (рядом со скриптом)
-    local script_dir="$(cd "$(dirname "$0")" && pwd)"
-    if [[ -f "$script_dir/webghost" ]]; then
-        cp "$script_dir/webghost" /usr/local/bin/webghost
-        chmod +x /usr/local/bin/webghost
-        green "✓ Installed WebGhost from local directory"
-        return 0
-    fi
-
-    # 2. Попытка скачать из GitHub Releases
-    local download_url="https://github.com/krdn-dev/naiveproxy-manager/releases/latest/download/webghost-linux-amd64"
-    yellow "Downloading WebGhost from ${download_url} ..."
-    curl -L --fail -o /usr/local/bin/webghost "$download_url" 2>/dev/null
-
-    if [[ $? -ne 0 || ! -s /usr/local/bin/webghost ]]; then
-        red "✗ Failed to download WebGhost"
-        red "✗ Please place webghost binary in /usr/local/bin/ and rerun the installer"
+    # Запуск webghost install (сайт + systemd-таймер)
+    yellow "Setting up website and traffic simulation timer ..."
+    /usr/local/bin/webghost --domain="$domain" --remote="${REMOTE_SERVER:-}" --log=/var/log/webghost-activity.log install
+    if [[ $? -ne 0 ]]; then
+        red "✗ WebGhost install command failed"
         return 1
     fi
 
-    chmod +x /usr/local/bin/webghost
-    green "✓ WebGhost installed to /usr/local/bin/webghost"
+    green "✓ WebGhost website and traffic simulation installed successfully!"
 }
 
 # =====================================
@@ -2070,7 +2077,6 @@ build_caddy() {
         > "$logfile" 2>&1 &
     local build_pid=$!
 
-    #local spin='⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏'
 	local spin='-\|/'
     local i=0
     while kill -0 $build_pid 2>/dev/null; do
@@ -2123,6 +2129,16 @@ create_configs() {
 :${proxyport}, ${domain}:${proxyport} {
     ja3
     encode br zstd deflate gzip
+	
+	header {
+        X-Powered-By "Express"
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "SAMEORIGIN"
+        X-XSS-Protection "1; mode=block"
+        Referrer-Policy "strict-origin-when-cross-origin"
+        Permissions-Policy "camera=(), microphone=(), geolocation=()"
+        -Server
+    }
 
     # WebSocket endpoint emulation
     route /ws-proxy {
@@ -2564,14 +2580,11 @@ install_naiveproxy() {
     setup_fail2ban
     configure_firewall
     
-    mkdir -p /etc/caddy /var/www/html
 	if ! install_webghost; then
         red "✗ WebGhost installation failed – aborting"
         exit 1
     fi
-	
-    /usr/local/bin/webghost --domain="$domain" --remote="${REMOTE_SERVER:-}" --log=/var/log/webghost-activity.log install
-	
+
     create_configs
     create_systemd_service
     enable_bbr
