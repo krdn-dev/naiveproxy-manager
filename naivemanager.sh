@@ -81,7 +81,7 @@ install_webghost() {
     [[ -n "${REMOTE_SERVER:-}" ]] && args+=("$REMOTE_SERVER")
     args+=(install --post)
 
-    nohup /usr/local/bin/webghost "${args[@]}" > /var/log/webghost-install.log 2>&1 &
+    nohup /usr/local/bin/webghost "${args[@]}" > /var/log/webghost-activity.log 2>&1 &
     local pid=$!
 
     # Даём секунду, чтобы процесс точно стартовал
