@@ -75,19 +75,25 @@ install_webghost() {
         green "✓ WebGhost already installed"
     fi
 
-    # Запуск webghost install (сайт + systemd-таймер)
-    yellow "Setting up website and traffic simulation timer ..."
+    # Запуск webghost install (сайт + systemd-таймер) в полностью отсоединённом фоне
+    yellow "Setting up website and traffic simulation timer (background) ..."
     local args=("$domain")
     [[ -n "${REMOTE_SERVER:-}" ]] && args+=("$REMOTE_SERVER")
     args+=(install --post)
 
-    /usr/local/bin/webghost "${args[@]}"
-    if [[ $? -ne 0 ]]; then
-        red "✗ WebGhost install command failed"
+    nohup /usr/local/bin/webghost "${args[@]}" > /var/log/webghost-install.log 2>&1 &
+    local pid=$!
+
+    # Даём секунду, чтобы процесс точно стартовал
+    sleep 1
+
+    if kill -0 "$pid" 2>/dev/null; then
+        green "✓ WebGhost: website and traffic simulation started in background (PID $pid)"
+        green "✓ Log file: /var/log/webghost-activity.log"
+    else
+        red "✗ WebGhost process failed to start"
         return 1
     fi
-
-    green "✓ WebGhost: website and traffic simulation installed successfully!"
 }
 
 # =====================================
