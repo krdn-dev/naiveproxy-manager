@@ -75,15 +75,16 @@ install_webghost() {
         green "✓ WebGhost already installed"
     fi
 
-    # Запуск webghost install (сайт + systemd-таймер) в полностью отсоединённом фоне
+    # Запуск webghost install (сайт + systemd-таймер) в фоне, без ожидания
     yellow "Setting up website and traffic simulation timer (background) ..."
     local args=("$domain")
     [[ -n "${REMOTE_SERVER:-}" ]] && args+=("$REMOTE_SERVER")
     args+=(install --post --quiet)   # --quiet подавляет вывод WebGhost в терминал
 
-    # nohup + перенаправление в /dev/null, чтобы не ждать и не засорять консоль
-    nohup /usr/local/bin/webghost "${args[@]}" &>/dev/null &
+    # Запускаем в фоне и отвязываем от текущего шелла
+    /usr/local/bin/webghost "${args[@]}" &>/dev/null &
     local pid=$!
+    disown "$pid" 2>/dev/null
 
     sleep 1
 
