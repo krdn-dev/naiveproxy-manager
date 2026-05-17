@@ -77,13 +77,17 @@ install_webghost() {
 
     # Запуск webghost install (сайт + systemd-таймер)
     yellow "Setting up website and traffic simulation timer ..."
-    /usr/local/bin/webghost --domain="$domain" --remote="${REMOTE_SERVER:-}" --log=/var/log/webghost-activity.log install
+    local args=("$domain")
+    [[ -n "${REMOTE_SERVER:-}" ]] && args+=("$REMOTE_SERVER")
+    args+=(install --post)
+
+    /usr/local/bin/webghost "${args[@]}"
     if [[ $? -ne 0 ]]; then
         red "✗ WebGhost install command failed"
         return 1
     fi
 
-    green "✓ WebGhost website and traffic simulation installed successfully!"
+    green "✓ WebGhost: website and traffic simulation installed successfully!"
 }
 
 # =====================================
@@ -2130,7 +2134,7 @@ create_configs() {
     ja3
     encode br zstd deflate gzip
 	
-	header {
+    header {
         X-Powered-By "Express"
         X-Content-Type-Options "nosniff"
         X-Frame-Options "SAMEORIGIN"
@@ -2150,6 +2154,16 @@ create_configs() {
         hide_ip
         hide_via
         probe_resistance
+    }
+
+    # === ОБРАБОТКА POST-ЗАПРОСОВ К ФОРМЕ (ТОЛЬКО POST, НЕ ТРОГАЕТ GET) ===
+    @post method POST
+    handle @post {
+        # Перенаправляем POST-запросы к /contact на страницу благодарности
+        handle /contact* {
+            header Location "/contact/thank-you.html"
+            respond "" 302
+        }
     }
 
     file_server {
@@ -2200,7 +2214,6 @@ EOF
     chmod 600 /root/naive/naive-client.json
     chmod 600 /root/naive/naive-url.txt
 }
-
 # =====================================
 # Function: Create a systemd service
 # =====================================
