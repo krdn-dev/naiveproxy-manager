@@ -79,12 +79,12 @@ install_webghost() {
     yellow "Setting up website and traffic simulation timer (background) ..."
     local args=("$domain")
     [[ -n "${REMOTE_SERVER:-}" ]] && args+=("$REMOTE_SERVER")
-    args+=(install --post)
+    args+=(install --post --quiet)   # --quiet подавляет вывод WebGhost в терминал
 
-    nohup /usr/local/bin/webghost "${args[@]}" > /var/log/webghost-activity.log 2>&1 &
+    # nohup + перенаправление в /dev/null, чтобы не ждать и не засорять консоль
+    nohup /usr/local/bin/webghost "${args[@]}" &>/dev/null &
     local pid=$!
 
-    # Даём секунду, чтобы процесс точно стартовал
     sleep 1
 
     if kill -0 "$pid" 2>/dev/null; then
