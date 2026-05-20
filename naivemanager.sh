@@ -29,6 +29,7 @@ blue() { echo -e "${BLUE}${1}${PLAIN}"; }
 # Global variables
 # =====================================
 SSH_PORT=22
+OS_IDX=0
 proxyport=""
 proxyname=""
 proxypwd=""
@@ -75,26 +76,38 @@ install_webghost() {
         green "✓ WebGhost already installed"
     fi
 
-    # Запуск webghost install (сайт + systemd-таймер) в фоне, без ожидания
+    # Запуск webghost install (сайт + systemd-таймер) в фоне
     yellow "Setting up website and traffic simulation timer (background) ..."
     local args=("$domain")
     [[ -n "${REMOTE_SERVER:-}" ]] && args+=("$REMOTE_SERVER")
-    args+=(install --post --quiet)   # --quiet подавляет вывод WebGhost в терминал
+    args+=(install --post --quiet)
 
     # Запускаем в фоне и отвязываем от текущего шелла
     /usr/local/bin/webghost "${args[@]}" &>/dev/null &
     local pid=$!
     disown "$pid" 2>/dev/null
 
-    sleep 1
-
-    if kill -0 "$pid" 2>/dev/null; then
-        green "✓ WebGhost: website and traffic simulation started in background (PID $pid)"
-        green "✓ Log file: /var/log/webghost-activity.log"
-    else
-        red "✗ WebGhost process failed to start"
-        return 1
-    fi
+    # Ожидаем появления таймера (максимум 30 секунд)
+    local waited=0
+    local max_wait=30
+    echo -n "  Waiting for timer to be created"
+    while [[ $waited -lt $max_wait ]]; do
+        if systemctl list-unit-files 2>/dev/null | grep -q "webghost-activity.timer"; then
+            echo ""
+            green "✓ WebGhost timer detected"
+            systemctl enable --now webghost-activity.timer 2>/dev/null
+            green "✓ WebGhost: website and traffic simulation started"
+            green "✓ Log file: /var/log/webghost-activity.log"
+            return 0
+        fi
+        sleep 1
+        waited=$((waited + 1))
+        echo -n "."
+    done
+    echo ""
+    red "✗ WebGhost timer not created within ${max_wait} seconds"
+    red "  Process PID $pid may still be running, but installation incomplete"
+    return 1
 }
 
 # =====================================
@@ -427,9 +440,9 @@ check_certificate_status() {
     fi
     
     echo ""
-    yellow "═══════════════════════════════════════════════════════════════"
-    yellow "                   Certificate Status"
-    yellow "═══════════════════════════════════════════════════════════════"
+    echo -e " ${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${PLAIN}"
+    green "                   Certificate Status"
+    echo -e " ${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${PLAIN}"
     echo ""
     
     local cert_file=$(find /var/lib/caddy/.local/share/caddy /root/.local/share/caddy -name "${domain}.crt" 2>/dev/null | head -1)
@@ -488,9 +501,9 @@ check_certificate_status() {
     fi
     
     echo ""
-    yellow "═══════════════════════════════════════════════════════════════"
-    yellow "                   Let's Encrypt Limits"
-    yellow "═══════════════════════════════════════════════════════════════"
+    echo -e " ${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${PLAIN}"
+    green "                   Let's Encrypt Limits"
+    echo -e " ${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${PLAIN}"
     echo ""
     
     # Проверяем логи Caddy за последние 7 дней
@@ -522,9 +535,9 @@ check_certificate_status() {
     fi
     
     echo ""
-    yellow "═══════════════════════════════════════════════════════════════"
-    yellow "                   Backup Info"
-    yellow "═══════════════════════════════════════════════════════════════"
+    echo -e " ${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${PLAIN}"
+    green "                       Backup Info"
+    echo -e " ${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${PLAIN}"
     echo ""
     
     local backup_dir="/root/naive/cert-backup"
@@ -570,7 +583,7 @@ check_certificate_status() {
     fi
     
     echo ""
-    yellow "═══════════════════════════════════════════════════════════════"
+    echo -e " ${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${PLAIN}"
     
     show_footer
 }
@@ -809,6 +822,10 @@ EOF
 # =====================================
 show_system_info() {
     show_header
+	
+	echo -e " ${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${PLAIN}"
+    green "                     System Information"
+    echo -e " ${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${PLAIN}"
     
     echo -e "${GREEN}Operating System:${PLAIN} $SYSTEM $VERSION"
     echo -e "${GREEN}Architecture:${PLAIN} $(uname -m)"
@@ -866,7 +883,7 @@ show_system_info() {
     else
         echo -e "${GREEN}TCP congestion:${PLAIN} $(sysctl -n net.ipv4.tcp_congestion_control 2>/dev/null || echo 'unknown')"
     fi
-	
+    
     echo -e "${GREEN}Bash:${PLAIN} ${BASH_VERSION}"
    
     if command -v openssl &>/dev/null; then
@@ -875,9 +892,9 @@ show_system_info() {
     fi
     
     echo ""
-    yellow "═══════════════════════════════════════════════════════════════"
-    yellow "                   NaiveProxy Status"
-    yellow "═══════════════════════════════════════════════════════════════"
+    echo -e " ${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${PLAIN}"
+    green "                      NaiveProxy Status"
+    echo -e " ${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${PLAIN}"
     
     if ! is_naive_installed; then
         echo ""
@@ -889,6 +906,37 @@ show_system_info() {
     if [[ -f /root/naive/runtime.env ]]; then
         source /root/naive/runtime.env
         green "✓ Configuration loaded"
+        
+        # +++ Добавляем проверку валидности полей конфигурации (взято из validate_configuration)
+        local config_valid=true
+        if [[ -z "$domain" ]]; then
+            red "✗ Configuration: domain is missing"
+            config_valid=false
+        elif ! echo "$domain" | grep -qP '^([a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}$'; then
+            red "✗ Configuration: invalid domain format ($domain)"
+            config_valid=false
+        fi
+        
+        if [[ -z "$proxyport" ]]; then
+            red "✗ Configuration: proxy port is missing"
+            config_valid=false
+        elif [[ ! "$proxyport" =~ ^[0-9]+$ ]]; then
+            red "✗ Configuration: proxy port is not a number ($proxyport)"
+            config_valid=false
+        fi
+        
+        if [[ -z "$email" ]]; then
+            red "✗ Configuration: email is missing"
+            config_valid=false
+        elif ! echo "$email" | grep -qP '^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'; then
+            red "✗ Configuration: invalid email format ($email)"
+            config_valid=false
+        fi
+        
+        if [[ "$config_valid" == true ]]; then
+            green "✓ Configuration: all fields valid"
+        fi
+        # +++ Конец добавления
     else
         red "✗ Configuration file not found"
         show_footer
@@ -940,22 +988,22 @@ show_system_info() {
             ;;
     esac
     
-	if command -v caddy &>/dev/null; then
-		CADDY_VER=$(caddy version 2>/dev/null | awk '{print $1}')
-		echo -e "${GREEN}  Caddy version:${PLAIN} $CADDY_VER"
-	fi
+    if command -v caddy &>/dev/null; then
+        CADDY_VER=$(caddy version 2>/dev/null | awk '{print $1}')
+        echo -e "${GREEN}  Caddy version:${PLAIN} $CADDY_VER"
+    fi
     
     if command -v go &>/dev/null; then
-		GO_VER=$(go version 2>/dev/null | awk '{print $3}' | sed 's/^go//')
-		echo -e "${GREEN}  Go version:${PLAIN} $GO_VER"
-	fi
+        GO_VER=$(go version 2>/dev/null | awk '{print $3}' | sed 's/^go//')
+        echo -e "${GREEN}  Go version:${PLAIN} $GO_VER"
+    fi
 
     if systemctl is-active --quiet caddy 2>/dev/null; then
         green "✓ Caddy service: running"
     else
         red "✗ Caddy service: NOT running"
     fi
-	
+    
     if command -v fail2ban-client &>/dev/null && systemctl is-active --quiet fail2ban 2>/dev/null; then
         JAILED=$(fail2ban-client status sshd 2>/dev/null | grep "Currently banned:" | awk '{print $4}' || echo "0")
         green "✓ fail2ban: running (banned: $JAILED IPs)"
@@ -970,9 +1018,9 @@ show_system_info() {
     else
         echo "  none"
     fi
-	
+    
     echo ""
-	
+    
     if [[ "$SERVER_IP" != "unknown" ]]; then
         if timeout 3 bash -c "echo >/dev/tcp/$SERVER_IP/443" 2>/dev/null; then
             green "✓ Port 443: reachable from internet"
@@ -1081,44 +1129,48 @@ cleanup_unused_packages() {
 system_maintenance() {
     show_header
     
-    echo "System maintenance options:"
+    echo -e " ${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${PLAIN}"
+    echo -e " ${GREEN}              System Maintenance Options${PLAIN}"
+    echo -e " ${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${PLAIN}"
     echo ""
-    echo "  1. Update package lists"
-    echo "  2. Upgrade all packages"
-    echo "  3. Clean up unused packages"
-    echo "  4. Full maintenance (all of the above)"
-    echo "  0. Cancel"
+    echo -e " ${GREEN}1.${PLAIN}  Update package lists"
+    echo -e " ${GREEN}2.${PLAIN}  Upgrade all packages"
+    echo -e " ${GREEN}3.${PLAIN}  Clean up unused packages"
+    echo -e " ${GREEN}4.${PLAIN}  Full maintenance (all of the above)"
+    echo ""
+    echo -e " ${RED}0.${PLAIN}  Cancel"
+    echo ""
+    echo -e " ${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${PLAIN}"
     echo ""
     
-    read -rp "Your choice [0-4]: " maint_choice
+    local maint_choice
+    read -rp " Your choice [0-4]: " maint_choice
+    echo ""
     
     case $maint_choice in
         0)
-            green "Maintenance cancelled"
+            green "✓ Maintenance cancelled"
             show_footer
             return 0
             ;;
         1)
-            echo ""
             update_package_lists
             ;;
         2)
-            echo ""
             upgrade_all_packages
             ;;
         3)
-            echo ""
             cleanup_unused_packages
             ;;
         4)
+            yellow "→ Running full maintenance ..."
             echo ""
-            yellow "Running full maintenance ..."
             update_package_lists
             upgrade_all_packages
             cleanup_unused_packages
             ;;
         *)
-            red "Invalid choice"
+            red "✗ Invalid choice"
             show_footer
             return 1
             ;;
@@ -1336,9 +1388,9 @@ check_system_requirements() {
         SYS="$i" && [[ -n $SYS ]] && break
     done
     
-    for ((int = 0; int < ${#REGEX[@]}; int++)); do
-        [[ $(echo "$SYS" | tr '[:upper:]' '[:lower:]') =~ ${REGEX[int]} ]] && SYSTEM="${RELEASE[int]}" && break
-    done
+	for ((OS_IDX = 0; OS_IDX < ${#REGEX[@]}; OS_IDX++)); do
+		[[ $(echo "$SYS" | tr '[:upper:]' '[:lower:]') =~ ${REGEX[OS_IDX]} ]] && SYSTEM="${RELEASE[OS_IDX]}" && break
+	done
     
     if [[ -z $SYSTEM ]]; then
         red "Your operating system is not supported!"
@@ -1419,7 +1471,7 @@ setup_auto_updates() {
     case $SYSTEM in
         "Debian"|"Ubuntu")
             if ! dpkg-query -W -f='${Status}' unattended-upgrades 2>/dev/null | grep -q "install ok installed"; then
-                ${PACKAGE_INSTALL[int]} unattended-upgrades -y 2>/dev/null
+                ${PACKAGE_INSTALL[OS_IDX]} unattended-upgrades -y 2>/dev/null
             fi
             
             cat > /etc/apt/apt.conf.d/20auto-upgrades << EOF
@@ -1444,7 +1496,7 @@ EOF
             green "Unattended upgrades are enabled"
             ;;
         "CentOS"|"Fedora"|"AlmaLinux"|"Rocky Linux"|"Oracle Linux")
-            ${PACKAGE_INSTALL[int]} dnf-automatic -y 2>/dev/null
+            ${PACKAGE_INSTALL[OS_IDX]} dnf-automatic -y 2>/dev/null
             sed -i 's/apply_updates = no/apply_updates = yes/' /etc/dnf/automatic.conf 2>/dev/null
             systemctl enable --now dnf-automatic.timer 2>/dev/null
             green "Automatic updates (dnf-automatic) are enabled"
@@ -1462,7 +1514,7 @@ setup_fail2ban() {
     yellow "Configuring fail2ban to protect SSH (port: $SSH_PORT) ..."
     
     if ! command -v fail2ban-client &>/dev/null; then
-        ${PACKAGE_INSTALL[int]} fail2ban -y 2>/dev/null
+        ${PACKAGE_INSTALL[OS_IDX]} fail2ban -y 2>/dev/null
     fi
     
     if ! command -v fail2ban-client &>/dev/null; then
@@ -1603,53 +1655,72 @@ setup_swap() {
 install_base_packages() {
     yellow "Installing base packages ..."
     
+    # Проверяем, что команда установки не пуста (защита от ошибок в массивах)
+    if [[ -z "${PACKAGE_INSTALL[OS_IDX]}" ]]; then
+        red "ERROR: PACKAGE_INSTALL[OS_IDX] is empty! OS_IDX=$OS_IDX, SYSTEM=$SYSTEM"
+        # Fallback в зависимости от типа ОС
+        case $SYSTEM in
+            Debian|Ubuntu)
+                PACKAGE_INSTALL[OS_IDX]="apt -y install"
+                ;;
+            CentOS|Fedora|AlmaLinux|"Rocky Linux"|"Oracle Linux")
+                PACKAGE_INSTALL[OS_IDX]="yum -y install"
+                ;;
+            *)
+                red "Unsupported system for fallback: $SYSTEM"
+                exit 1
+                ;;
+        esac
+        green "Fixed: PACKAGE_INSTALL[OS_IDX]='${PACKAGE_INSTALL[OS_IDX]}'"
+    fi
+    
     if [[ $SYSTEM == "CentOS" ]] && [[ ${VERSION:-0} -ge 8 ]]; then
-        ${PACKAGE_UPDATE[int]} 2>/dev/null || true
+        ${PACKAGE_UPDATE[OS_IDX]} 2>/dev/null || true
     elif [[ $SYSTEM != "CentOS" ]]; then
-        ${PACKAGE_UPDATE[int]}
+        ${PACKAGE_UPDATE[OS_IDX]}
     fi
     
     if [[ $SYSTEM == "CentOS" ]] || [[ $SYSTEM == "Fedora" ]] || [[ $SYSTEM == "AlmaLinux" ]] || [[ $SYSTEM == "Rocky Linux" ]]; then
         if ! rpm -q epel-release &>/dev/null && ! rpm -q epel-next-release &>/dev/null; then
             yellow "Connecting the EPEL repository ..."
-            ${PACKAGE_INSTALL[int]} epel-release -y 2>/dev/null
+            ${PACKAGE_INSTALL[OS_IDX]} epel-release -y 2>/dev/null
         fi
     fi
     
     if [[ $SYSTEM == "Oracle Linux" ]]; then
         if ! dnf repolist | grep -q "ol10_developer_EPEL"; then
             yellow "Connecting Oracle Linux EPEL repository ..."
-            ${PACKAGE_INSTALL[int]} oracle-epel-release-el10 -y 2>/dev/null
+            ${PACKAGE_INSTALL[OS_IDX]} oracle-epel-release-el10 -y 2>/dev/null
         fi
     fi
     
-    ${PACKAGE_INSTALL[int]} curl wget git
+    ${PACKAGE_INSTALL[OS_IDX]} curl wget git
     
     if ! command -v bc &>/dev/null; then
         yellow "Installing bc (calculator) ..."
-        ${PACKAGE_INSTALL[int]} bc -y 2>/dev/null
+        ${PACKAGE_INSTALL[OS_IDX]} bc -y 2>/dev/null
     fi
     
     if ! command -v dig &>/dev/null; then
         yellow "Installation dnsutils (dig) ..."
-        ${PACKAGE_INSTALL[int]} dnsutils 2>/dev/null || ${PACKAGE_INSTALL[int]} bind-utils 2>/dev/null
+        ${PACKAGE_INSTALL[OS_IDX]} dnsutils 2>/dev/null || ${PACKAGE_INSTALL[OS_IDX]} bind-utils 2>/dev/null
     fi
     
     if [[ $SYSTEM == "Debian" ]] || [[ $SYSTEM == "Ubuntu" ]]; then
-        ${PACKAGE_INSTALL[int]} build-essential
+        ${PACKAGE_INSTALL[OS_IDX]} build-essential
     else
-        ${PACKAGE_INSTALL[int]} gcc gcc-c++ make
+        ${PACKAGE_INSTALL[OS_IDX]} gcc gcc-c++ make
     fi
     
     if ! command -v qrencode &>/dev/null; then
-        ${PACKAGE_INSTALL[int]} qrencode 2>/dev/null || yellow "qrencode not installed (QR codes will not work)"
+        ${PACKAGE_INSTALL[OS_IDX]} qrencode 2>/dev/null || yellow "qrencode not installed (QR codes will not work)"
     else
         green "qrencode already installed"
     fi
-	
-	if ! command -v dos2unix &>/dev/null; then
+    
+    if ! command -v dos2unix &>/dev/null; then
         yellow "Installing dos2unix ..."
-        ${PACKAGE_INSTALL[int]} dos2unix -y 2>/dev/null || true
+        ${PACKAGE_INSTALL[OS_IDX]} dos2unix -y 2>/dev/null || true
     fi
     
     green "Basic packages are installed"
@@ -1664,7 +1735,7 @@ configure_firewall() {
     case $SYSTEM in
         "Debian"|"Ubuntu")
             if ! command -v ufw &>/dev/null; then
-                ${PACKAGE_INSTALL[int]} ufw -y 2>/dev/null
+                ${PACKAGE_INSTALL[OS_IDX]} ufw -y 2>/dev/null
             fi
             sed -i 's/IPV6=yes/IPV6=no/' /etc/default/ufw 2>/dev/null
             ufw --force reset 2>/dev/null
@@ -1679,7 +1750,7 @@ configure_firewall() {
             ;;
         "CentOS"|"Fedora"|"AlmaLinux"|"Rocky Linux"|"Oracle Linux")
             if ! command -v firewall-cmd &>/dev/null; then
-                ${PACKAGE_INSTALL[int]} firewalld -y 2>/dev/null
+                ${PACKAGE_INSTALL[OS_IDX]} firewalld -y 2>/dev/null
             fi
             systemctl enable --now firewalld 2>/dev/null
             firewall-cmd --permanent --add-port="$SSH_PORT"/tcp 2>/dev/null
@@ -1760,20 +1831,42 @@ install_go() {
     GO_ARCHIVE="${LATEST_GO_VERSION}.linux-${ARCH}.tar.gz"
     DOWNLOAD_URL="https://go.dev/dl/${GO_ARCHIVE}"
 
-    # Проверяем, не используется ли Go другими проектами
-    if [[ -d /usr/local/go ]]; then
-        yellow "○ Go already installed at /usr/local/go"
-        if command -v go &>/dev/null; then
-            local installed_go=$(go version 2>/dev/null | awk '{print $3}' | sed 's/^go//')
-            green "  Current version: $installed_go"
-        fi
-        read -rp "Overwrite existing Go installation? [y/N]: " overwrite_go
-        if [[ ! "$overwrite_go" =~ ^[Yy]$ ]]; then
+    # Проверяем, установлен ли Go (через PATH)
+    if command -v go &>/dev/null; then
+        local existing_go_version=$(go version 2>/dev/null | awk '{print $3}' | sed 's/^go//')
+        yellow "○ Go is already installed in PATH: $(which go)"
+        green "  Current version: $existing_go_version"
+        
+        read -rp "Use existing Go installation? [Y/n]: " use_existing
+        if [[ "$use_existing" =~ ^[Yy]$ ]] || [[ -z "$use_existing" ]]; then
             green "✓ Keeping existing Go installation"
             return 0
+        else
+            yellow "○ Will install Go to /usr/local/go (may override system Go)"
+            # Если Go установлен через пакетный менеджер, рекомендуем удалить
+            if [[ -f /usr/bin/go ]] && [[ ! -L /usr/bin/go ]]; then
+                yellow "  Warning: system Go package detected. To avoid conflicts, run:"
+                yellow "    apt remove golang   # Debian/Ubuntu"
+                yellow "    yum remove golang   # CentOS/RHEL"
+            fi
         fi
     fi
-    rm -rf /usr/local/go
+
+    # Если папка /usr/local/go уже существует – перезаписываем
+    if [[ -d /usr/local/go ]]; then
+        yellow "○ /usr/local/go already exists"
+        read -rp "Overwrite existing Go installation? [y/N]: " overwrite_go
+        if [[ ! "$overwrite_go" =~ ^[Yy]$ ]]; then
+            green "✓ Keeping existing /usr/local/go"
+            # Добавляем в PATH, если ещё не добавлено
+            if ! grep -q "/usr/local/go/bin" ~/.bashrc; then
+                echo 'export PATH=$PATH:/usr/local/go/bin' >> ~/.bashrc
+                export PATH=$PATH:/usr/local/go/bin
+            fi
+            return 0
+        fi
+        rm -rf /usr/local/go
+    fi
 
     for i in 1 2 3; do
         yellow "Downloading $LATEST_GO_VERSION for linux/$ARCH (attempt $i)..."
@@ -1789,7 +1882,10 @@ install_go() {
     yellow "Installing Go in /usr/local ..."
     tar -C /usr/local -xzf /tmp/go.tar.gz
 
-    echo 'export PATH=$PATH:/usr/local/go/bin' >> ~/.bashrc
+    # Добавляем PATH в .bashrc, если ещё нет
+    if ! grep -q "/usr/local/go/bin" ~/.bashrc; then
+        echo 'export PATH=$PATH:/usr/local/go/bin' >> ~/.bashrc
+    fi
     export PATH=$PATH:/usr/local/go/bin
 
     rm -f /tmp/go.tar.gz
@@ -1803,6 +1899,53 @@ install_go() {
 }
 
 # =====================================
+# Function: Auto-detect domain via reverse DNS (PTR)
+# =====================================
+auto_detect_domain() {
+    local server_ip="$1"
+    local ptr_domain=""
+    
+    # Проверяем, установлен ли dig
+    if ! command -v dig &>/dev/null; then
+        yellow "○ dig not installed, skipping auto-detection"
+        return 1
+    fi
+    
+    # Проверка, что IP передан и не пуст
+    if [[ -z "$server_ip" ]] || [[ "$server_ip" == "unknown" ]]; then
+        yellow "○ No valid server IP provided, skipping auto-detection"
+        return 1
+    fi
+    
+    yellow "→ Attempting to detect domain via reverse DNS (PTR) for IP: $server_ip"
+    
+    # Получаем PTR запись
+    ptr_domain=$(dig -x "$server_ip" +short 2>/dev/null | head -1 | sed 's/\.$//')
+    
+    if [[ -z "$ptr_domain" ]]; then
+        yellow "○ No PTR record found for $server_ip"
+        return 1
+    fi
+    
+    # Проверяем, что домен выглядит валидно (не IP-подобный)
+    if [[ "$ptr_domain" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+        yellow "○ PTR record points to IP address ($ptr_domain), ignoring"
+        return 1
+    fi
+    
+    # Необязательная проверка: резолвится ли домен обратно в наш IP
+    local resolved_ip=$(dig +short "$ptr_domain" 2>/dev/null | head -1)
+    if [[ -n "$resolved_ip" ]] && [[ "$resolved_ip" != "$server_ip" ]]; then
+        yellow "○ PTR domain $ptr_domain resolves to $resolved_ip, not our IP. Skipping auto-detection."
+        return 1
+    fi
+    
+    # Если всё хорошо, выводим домен и возвращаем успех
+    echo "$ptr_domain"
+    return 0
+}
+
+# =====================================
 # Function: User input parameters
 # =====================================
 input_parameters() {
@@ -1812,42 +1955,41 @@ input_parameters() {
     yellow "═══════════════════════════════════════════════════════════════"
     echo ""
     
-		if [[ -f /root/naive/runtime.env ]]; then
-			source /root/naive/runtime.env
-			green "○ Found existing configuration for domain: $domain"
-			echo ""
-			
-			while true; do
-				read -rp "Do you want to use these settings? [Y/n]: " use_saved
-				
-				# Приводим к нижнему регистру и убираем пробелы
-				use_saved=$(echo "$use_saved" | tr '[:upper:]' '[:lower:]' | xargs)
-				
-				case $use_saved in
-					n|no)
-						yellow "○ OK, let's reconfigure everything"
-						unset SSH_PORT proxyport domain email proxyname proxypwd
-						break
-						;;
-					""|y|yes)
-						green "✓ Using saved configuration"
-						green "  Domain: $domain"
-						green "  Proxy port: $proxyport"
-						green "  SSH port: $SSH_PORT"
-						green "  Username: $proxyname"
-						green "  Password: $proxypwd"
-						echo ""
-						SERVER_IP=$(curl -s --max-time 5 ifconfig.me 2>/dev/null || echo "unknown")
-						return 0
-						;;
-					*)
-						red "✗ Please answer y or n"
-						continue
-						;;
-				esac
-			done
-		fi
+    if [[ -f /root/naive/runtime.env ]]; then
+        source /root/naive/runtime.env
+        green "○ Found existing configuration for domain: $domain"
+        echo ""
+        
+        while true; do
+            read -rp "Do you want to use these settings? [Y/n]: " use_saved
+            use_saved=$(echo "$use_saved" | tr '[:upper:]' '[:lower:]' | xargs)
+            
+            case $use_saved in
+                n|no)
+                    yellow "○ OK, let's reconfigure everything"
+                    unset SSH_PORT proxyport domain email proxyname proxypwd
+                    break
+                    ;;
+                ""|y|yes)
+                    green "✓ Using saved configuration"
+                    green "  Domain: $domain"
+                    green "  Proxy port: $proxyport"
+                    green "  SSH port: $SSH_PORT"
+                    green "  Username: $proxyname"
+                    green "  Password: $proxypwd"
+                    echo ""
+                    SERVER_IP=$(curl -s --max-time 5 ifconfig.me 2>/dev/null || echo "unknown")
+                    return 0
+                    ;;
+                *)
+                    red "✗ Please answer y or n"
+                    continue
+                    ;;
+            esac
+        done
+    fi
     
+    # --- SSH port ---
     while true; do
         echo ""
         blue "→ SSH configuration:"
@@ -1882,6 +2024,7 @@ input_parameters() {
         esac
     done
 
+    # --- NaiveProxy port ---
     while true; do    
         echo ""
         blue "→ NaiveProxy port selection:"
@@ -1894,7 +2037,7 @@ input_parameters() {
         case $port_choice in
             1)
                 proxyport=443
-                if ss -tlnp | grep -q ":$proxyport "; then
+                if ss -tlnp | awk -v p=":${proxyport}" '$4 ~ p {exit 0} END {exit 1}'; then
                     red "✗ Port $proxyport is already in use by another process!"
                     yellow "Please select another port:"
                     continue
@@ -1904,7 +2047,7 @@ input_parameters() {
                 ;;
             2)
                 proxyport=8443
-                if ss -tlnp | grep -q ":$proxyport "; then
+                if ss -tlnp | awk -v p=":${proxyport}" '$4 ~ p {exit 0} END {exit 1}'; then
                     red "✗ Port $proxyport is already in use by another process!"
                     yellow "Please select another port:"
                     continue
@@ -1920,7 +2063,7 @@ input_parameters() {
                         continue
                     fi
                     
-                    if ss -tlnp | grep -q ":$proxyport "; then
+                    if ss -tlnp | awk -v p=":${proxyport}" '$4 ~ p {exit 0} END {exit 1}'; then
                         red "✗ Port $proxyport is already in use by another process!"
                         yellow "Please select another port:"
                         continue
@@ -1937,45 +2080,80 @@ input_parameters() {
         esac
     done
 
-    while true; do
+    # --- Domain input with auto-detection ---
+    # Получаем внешний IP один раз
+    SERVER_IP=$(curl -s --max-time 5 ifconfig.me 2>/dev/null || curl -s --max-time 5 icanhazip.com 2>/dev/null || curl -s --max-time 5 ipinfo.io/ip 2>/dev/null)
+    
+    # Автоопределение домена
+    local detected_domain=""
+    if [[ -n "$SERVER_IP" ]] && [[ "$SERVER_IP" != "unknown" ]]; then
+        detected_domain=$(auto_detect_domain "$SERVER_IP")
+        if [[ -n "$detected_domain" ]]; then
+            echo ""
+            read -rp "$(green "Auto-detected domain: $detected_domain. Use it? [Y/n]: ")" use_detected
+            if [[ "$use_detected" =~ ^[Yy]$ ]] || [[ -z "$use_detected" ]]; then
+                domain="$detected_domain"
+                green "✓ Using domain: $domain"
+                # Проверим DNS для этого домена
+                yellow "→ Checking DNS ..."
+                DOMAIN_IP=$(dig +short "$domain" | head -1)
+                if [[ -z "$DOMAIN_IP" ]]; then
+                    red "✗ Domain $domain does not resolve to an IP address"
+                    yellow "→ Please enter domain manually"
+                    domain=""
+                elif [[ "$DOMAIN_IP" != "$SERVER_IP" ]]; then
+                    red "✗ Domain $domain points to $DOMAIN_IP, but server IP is $SERVER_IP"
+                    yellow "→ Please enter domain manually"
+                    domain=""
+                else
+                    green "✓ DNS check passed: $domain → $DOMAIN_IP"
+                fi
+            fi
+        fi
+    fi
+
+    # Ручной ввод, если домен ещё не определён
+    while [[ -z "$domain" ]]; do
         echo ""
         read -rp "$(blue "→ Enter your domain (e.g., example.com): ")" domain
         
-        if [[ -z $domain ]]; then
+        if [[ -z "$domain" ]]; then
             red "✗ The domain cannot be empty!"
             continue
         fi
         
         if ! echo "$domain" | grep -qP '^(?=[a-z0-9-]{1,63}\.)([a-z0-9-]+\.)+[a-z]{2,}$'; then
             red "✗ Incorrect domain format — use example.com"
+            domain=""
             continue
         fi
         
         yellow "→ Checking DNS ..."
-        SERVER_IP=$(curl -s --max-time 5 ifconfig.me 2>/dev/null || curl -s --max-time 5 icanhazip.com 2>/dev/null || curl -s --max-time 5 ipinfo.io/ip 2>/dev/null)
         DOMAIN_IP=$(dig +short "$domain" | head -1)
         
         if [[ -z "$DOMAIN_IP" ]]; then
             red "✗ Domain $domain does not resolve to an IP address"
             yellow "→ Fix your DNS records and try again"
+            domain=""
             continue
         fi
         
         if [[ "$DOMAIN_IP" != "$SERVER_IP" ]]; then
             red "✗ Domain $domain points to $DOMAIN_IP, but server IP is $SERVER_IP"
             red "→ Fix your A record and try again"
+            domain=""
             continue
         fi
         
         green "✓ DNS check passed: $domain → $DOMAIN_IP"
-        break
     done
 
+    # --- Email ---
     while true; do
         echo ""
         read -rp "$(blue "→ Enter email for Let's Encrypt certificate: ")" email
         
-        if [[ -z $email ]]; then
+        if [[ -z "$email" ]]; then
             red "✗ Email cannot be empty!"
             continue
         fi
@@ -1989,11 +2167,11 @@ input_parameters() {
         break
     done
 
+    # --- Remote server for mutual imitation ---
     echo ""
     read -rp "$(blue "→ Enter remote server for mutual traffic imitation (IP or domain, leave empty to skip): ")" remote_server_input
     
     if [[ -n "$remote_server_input" ]]; then
-        # Простая валидация: IP или домен
         if [[ "$remote_server_input" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]] || \
            [[ "$remote_server_input" =~ ^([a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}$ ]]; then
             REMOTE_SERVER="$remote_server_input"
@@ -2006,12 +2184,11 @@ input_parameters() {
         REMOTE_SERVER=""
     fi
 
-    # ----- Генерируем admin credentials -----
-		proxyname=$(openssl rand -hex 12)
-		proxypwd=$(openssl rand -hex 16)
-		green "✓ Admin credentials generated"
-	
-	    
+    # --- Generate admin credentials ---
+    proxyname=$(openssl rand -hex 12)
+    proxypwd=$(openssl rand -hex 16)
+    green "✓ Admin credentials generated"
+    
     echo ""
     yellow "═══════════════════════════════════════════════════════════════"
     yellow "                  Review Your Settings"
@@ -2128,7 +2305,7 @@ create_configs() {
     }
     
     servers {
-        protocols h1 h2 h3
+        protocols h2 h3
 		
         listener_wrappers {
             ja3
@@ -2221,6 +2398,7 @@ EOF
     chmod 600 /root/naive/naive-client.json
     chmod 600 /root/naive/naive-url.txt
 }
+
 # =====================================
 # Function: Create a systemd service
 # =====================================
@@ -2511,7 +2689,7 @@ show_install_checklist() {
     if systemctl is-active --quiet naiveguard.timer 2>/dev/null; then
         green "✓ NaiveGuard watchdog: active"
     else
-        yellow "○ NaiveGuard: not installed (run option 16)"
+        yellow "○ NaiveGuard: not installed (run option 15)"
     fi
 
     # Auto-updates
@@ -2677,36 +2855,72 @@ install_naiveproxy() {
 uninstall_naiveproxy() {
     show_header
     
-    yellow "○ This will remove NaiveProxy and ALL related files!"
-    yellow "  - Caddy service and binary"
-    yellow "  - SSL certificates"
-    yellow "  - Client configurations"
-	yellow "  - Random webghost activity timer"
+    yellow "═══════════════════════════════════════════════════════════════"
+    yellow "                 UNINSTALL NaiveProxy Manager"
+    yellow "═══════════════════════════════════════════════════════════════"
     echo ""
-    
-    # Показываем, что будет сохранено
-    if [[ -d /root/naive ]]; then
-        echo "  Backup folder exists: /root/naive/"
-        echo "    - runtime.env (config)"
-        echo "    - cert-backup/ (SSL certificates)"
-        echo "    - users/ (user accounts)"
-        echo ""
-    fi
+    yellow "This will remove:"
+    echo -e "  ${RED}• Caddy service and binary${PLAIN}"
+    echo -e "  ${RED}• SSL certificates (including Let's Encrypt data)${PLAIN}"
+    echo -e "  ${RED}• Caddy configuration files${PLAIN}"
+    echo -e "  ${RED}• NaiveProxy client configs (/root/naive/naive-*)${PLAIN}"
+    echo -e "  ${RED}• WebGhost activity timer and website (if installed)${PLAIN}"
+    echo ""
+    yellow "The following will be KEPT:"
+    echo -e "  ${GREEN}• Go installation (/usr/local/go) – not removed${PLAIN}"
+    echo -e "  ${GREEN}• /root/naive directory (backup, config, users) – you will be asked separately${PLAIN}"
+    echo ""
+    yellow "═══════════════════════════════════════════════════════════════"
+    echo ""
 	
-    # Удаляем WebGhost activity (если использовалась)
-    systemctl stop webghost-activity.timer 2>/dev/null
-    systemctl disable webghost-activity.timer 2>/dev/null
-    rm -f /etc/systemd/system/webghost-activity.{service,timer}
-    rm -f /usr/local/bin/webghost-activity.sh
-    rm -f /var/log/webghost-activity.log
-    rm -f /etc/logrotate.d/webghost-activity
-    rm -f /usr/local/bin/webghost
-	rm -rf /var/www/html/*
-    systemctl daemon-reload
+    # Подтверждение удаления с ответом по умолчанию "Y"
+    read -rp "Are you sure you want to UNINSTALL NaiveProxy Manager? [Y/n]: " confirm_uninstall
+    if [[ -z "$confirm_uninstall" ]] || [[ "$confirm_uninstall" =~ ^[Yy]$ ]]; then
+        green "Proceeding with uninstall ..."
+    else
+        green "Uninstall cancelled."
+        show_footer
+        return 0
+    fi
     
-    read -rp "Remove configuration backup as well? [y/N]: " remove_backup
+	yellow "Proceeding with uninstallation ..."
+	
+    # ---- Удаление WebGhost (если установлен) ----
+    if command -v webghost &>/dev/null; then
+        yellow "WebGhost binary found. Using built-in uninstall-all ..."
+        webghost uninstall-all 2>/dev/null
+        if [[ $? -eq 0 ]]; then
+            green "✓ WebGhost completely removed (timer, website, binary, logs)"
+        else
+            red "✗ WebGhost uninstall-all failed, cleaning manually ..."
+            # fallback: ручное удаление
+            systemctl stop webghost-activity.timer 2>/dev/null
+            systemctl disable webghost-activity.timer 2>/dev/null
+            rm -f /etc/systemd/system/webghost-activity.{service,timer}
+            rm -f /usr/local/bin/webghost-activity.sh
+            rm -f /var/log/webghost-activity.log
+            rm -f /etc/logrotate.d/webghost-activity
+            rm -f /usr/local/bin/webghost
+            rm -rf /var/www/html/*
+            systemctl daemon-reload
+        fi
+    else
+        yellow "WebGhost not found in PATH, cleaning manually ..."
+        # старый ручной код
+        systemctl stop webghost-activity.timer 2>/dev/null
+        systemctl disable webghost-activity.timer 2>/dev/null
+        rm -f /etc/systemd/system/webghost-activity.{service,timer}
+        rm -f /usr/local/bin/webghost-activity.sh
+        rm -f /var/log/webghost-activity.log
+        rm -f /etc/logrotate.d/webghost-activity
+        rm -f /usr/local/bin/webghost
+        rm -rf /var/www/html/*
+        systemctl daemon-reload
+    fi
     
-    # Перезапускаем Caddy
+    read -rp "Remove configuration backup (/root/naive) as well? [y/N]: " remove_backup
+    
+    # ---- Остановка и удаление Caddy ----
     systemctl stop caddy 2>/dev/null
     systemctl disable caddy 2>/dev/null
     sleep 2
@@ -2722,7 +2936,6 @@ uninstall_naiveproxy() {
     
     sed -i '/export PATH=\$PATH:\/usr\/local\/go\/bin/d' ~/.bashrc
     
-    # Удаляем конфиги только если пользователь явно сказал YES
     if [[ "$remove_backup" =~ ^[Yy]$ ]]; then
         rm -rf /root/naive
         green "✓ Configuration backup removed"
@@ -2764,7 +2977,7 @@ start_naiveproxy() {
     
 	# Проверяем, что порт всё ещё свободен (мог быть занят между установкой и запуском)
 	load_runtime_config
-	if ss -tlnp | grep -q ":$proxyport "; then
+	if ss -tlnp | awk -v p=":${proxyport}" '$4 ~ p {exit 0} END {exit 1}'; then
 		local pid_info=$(ss -tlnp | grep ":$proxyport " | awk '{print $NF}')
 		red "✗ Port $proxyport is in use: $pid_info"
 		return 1
@@ -2913,8 +3126,8 @@ show_user_registry() {
             local short_username="${username:0:8}"
             local short_name="${name:0:28}"
             local padded_id=$(printf "%4s" "$id")
-            local name_padding=$(printf '%*s' $((30 - ${#short_name})) "")
-            local user_padding=$(printf '%*s' $((8 - ${#short_username})) "")
+			local name_padding=$(printf '%*s' $((30 - ${#short_name})) "")
+			local user_padding=$(printf '%*s' $((8 - ${#short_username})) "")
                         
             echo -e "  ${padded_id} ${BLUE}|${PLAIN} ${short_name}${name_padding} ${BLUE}|${PLAIN} ${short_username}${user_padding} ${BLUE}|${PLAIN} ${created}"
         done < /root/naive/registry.txt
@@ -3064,8 +3277,12 @@ add_new_user() {
 	cp /etc/caddy/Caddyfile "$caddy_tmp"
 	cp /etc/caddy/Caddyfile "${caddy_tmp}.backup"
 
-	# Добавляем нового пользователя (ищем первый forward_proxy блок)
-	sed -i "0,/forward_proxy {/!b; /forward_proxy {/a\\        basic_auth ${username} ${password}" "$caddy_tmp"
+	# Добавляем нового пользователя в первый блок forward_proxy
+	# Вставляем без жёстких отступов: caddy fmt сам их выровняет
+	sed -i "/forward_proxy {/a\\    basic_auth ${username} ${password}" "$caddy_tmp"
+
+	# Форматируем конфиг, чтобы отступы и структура стали каноническими
+	caddy fmt --overwrite "$caddy_tmp" 2>/dev/null
 
 	# Применяем временный файл и валидируем
 	mv "$caddy_tmp" /etc/caddy/Caddyfile
@@ -3073,7 +3290,7 @@ add_new_user() {
 		red "✗ Caddyfile validation failed! Rolling back ..."
 		cp "${caddy_tmp}.backup" /etc/caddy/Caddyfile
 		rm -f "$caddy_tmp" "${caddy_tmp}.backup"
-		systemctl restart caddy   # на всякий случай, если уже был запущен
+		systemctl restart caddy 2>/dev/null
 		return 1
 	fi
 
@@ -3110,10 +3327,13 @@ EOF
 	
     systemctl restart caddy 2>/dev/null
 	
-	if ! systemctl is-active --quiet caddy; then
-		red "✗ Caddy failed to restart! Check: journalctl -u caddy -n 30"
-		return 1
-	fi
+    sleep 2
+	
+    if ! systemctl is-active --quiet caddy; then
+        red "✗ Caddy failed to restart after adding user!"
+        journalctl -u caddy -n 10 --no-pager
+        return 1
+    fi
     
     echo ""
     green "✓ User '$user_name' added!"
@@ -3263,8 +3483,11 @@ remove_user() {
         # Перезапускаем Caddy
         systemctl restart caddy 2>/dev/null
 		
+		sleep 2
+		
 		if ! systemctl is-active --quiet caddy; then
-			red "✗ Caddy failed to restart! Check: journalctl -u caddy -n 30"
+			red "✗ Caddy failed to restart after removing user!"
+			journalctl -u caddy -n 10 --no-pager
 			return 1
 		fi
         
@@ -3274,100 +3497,6 @@ remove_user() {
     done
     
     show_footer
-}
-
-# =====================================
-# Function: Validate configuration and certificates
-# =====================================
-validate_configuration() {
-    local errors=0
-    
-    echo ""
-    yellow "═══════════════════════════════════════════════════════════════"
-    yellow "                   Configuration Validation"
-    yellow "═══════════════════════════════════════════════════════════════"
-    echo ""
-    
-    if [[ -f /root/naive/runtime.env ]]; then
-        source /root/naive/runtime.env
-        green "✓ Configuration file loaded"
-    else
-        red "✗ Configuration file not found at /root/naive/runtime.env"
-        errors=$((errors+1))
-    fi
-    
-    [[ -z "$domain" ]] && { red "✗ Domain is missing"; errors=$((errors+1)); } || green "✓ Domain: $domain"
-    [[ -z "$proxyport" ]] && { red "✗ Proxy port is missing"; errors=$((errors+1)); } || green "✓ Proxy port: $proxyport"
-    [[ -z "$proxyname" ]] && { red "✗ Username is missing"; errors=$((errors+1)); } || green "✓ Username: $proxyname"
-    [[ -z "$proxypwd" ]] && { red "✗ Password is missing"; errors=$((errors+1)); } || green "✓ Password: [set]"
-    [[ -z "$email" ]] && { red "✗ Email is missing"; errors=$((errors+1)); } || green "✓ Email: $email"
-    [[ -z "$SSH_PORT" ]] && { red "✗ SSH port is missing"; errors=$((errors+1)); } || green "✓ SSH port: $SSH_PORT"
-    
-    if [[ -n "$proxyport" ]] && [[ ! "$proxyport" =~ ^[0-9]+$ ]]; then
-        red "✗ Proxy port is not a number: $proxyport"
-        errors=$((errors+1))
-    fi
-    
-    if [[ -n "$domain" ]] && ! echo "$domain" | grep -qP '^([a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}$'; then
-        red "✗ Domain format is invalid: $domain"
-        errors=$((errors+1))
-    fi
-    
-    echo ""
-    yellow "SSL Certificate Status:"
-    CERT_FILE=$(find /var/lib/caddy/.local/share/caddy /root/.local/share/caddy -name "${domain}.crt" 2>/dev/null | head -1)
-    
-    if [[ -n "$CERT_FILE" ]] && [[ -f "$CERT_FILE" ]]; then
-        CERT_EXPIRY=$(openssl x509 -enddate -noout -in "$CERT_FILE" 2>/dev/null | cut -d= -f2)
-        CERT_ISSUER=$(openssl x509 -issuer -noout -in "$CERT_FILE" 2>/dev/null | sed 's/issuer=//' | xargs)
-        CERT_DOMAIN=$(openssl x509 -subject -noout -in "$CERT_FILE" 2>/dev/null | grep -oP 'CN=\K[^,]+' || echo "$domain")
-        
-        EXPIRY_EPOCH=$(date -d "$CERT_EXPIRY" +%s 2>/dev/null)
-        NOW_EPOCH=$(date +%s)
-        DAYS_LEFT=$(( (EXPIRY_EPOCH - NOW_EPOCH) / 86400 ))
-        
-        if [[ $DAYS_LEFT -lt 0 ]]; then
-            red "✗ SSL certificate has EXPIRED"
-            errors=$((errors+1))
-        elif [[ $DAYS_LEFT -lt 7 ]]; then
-            yellow "○ SSL certificate expires in $DAYS_LEFT days"
-        else
-            green "✓ SSL certificate is valid (expires in $DAYS_LEFT days)"
-        fi
-        
-        green "  Domain: $CERT_DOMAIN"
-        green "  Issuer: $CERT_ISSUER"
-        green "  Expires: $CERT_EXPIRY"
-    else
-        red "✗ SSL certificate not found for domain $domain"
-        errors=$((errors+1))
-    fi
-    
-    echo ""
-    yellow "Connectivity Check:"
-    SERVER_IP=$(curl -s --max-time 3 ifconfig.me 2>/dev/null || echo "unknown")
-    if [[ "$SERVER_IP" != "unknown" ]]; then
-        if timeout 3 bash -c "echo >/dev/tcp/$SERVER_IP/443" 2>/dev/null; then
-            green "✓ Port 443 is reachable from internet"
-        else
-            red "✗ Port 443 is NOT reachable from internet"
-            yellow "  ○ Check firewall and NAT settings"
-            errors=$((errors+1))
-        fi
-    else
-        yellow "○ Could not determine external IP"
-    fi
-    
-    echo ""
-    yellow "═══════════════════════════════════════════════════════════════"
-    if [[ $errors -eq 0 ]]; then
-        green "✓ VALIDATION PASSED — all systems ready"
-        return 0
-    else
-        red "✗ VALIDATION FAILED — found $errors error(s)"
-        yellow "  ○ Run 'Install' again or check logs: journalctl -u caddy -n 50"
-        return 1
-    fi
 }
 
 # =====================================
@@ -3516,7 +3645,7 @@ show_menu() {
     
     if [[ $answer != "0" ]]; then
         echo ""
-        read -rp "Press Enter to return to menu ..."
+        read -rp "Press Enter to return to menu ... "
         show_menu
     fi
 }
