@@ -3542,7 +3542,8 @@ setup_custom_prompt() {
 # =====================================
 show_menu() {
     show_header
-    
+    check_system_requirements
+	
     echo -e " ${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${PLAIN}"
     echo -e " ${GREEN}    Proxy Management${PLAIN}"
     echo -e " ${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${PLAIN}"
