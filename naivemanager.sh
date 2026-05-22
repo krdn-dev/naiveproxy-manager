@@ -1955,39 +1955,40 @@ input_parameters() {
     yellow "═══════════════════════════════════════════════════════════════"
     echo ""
     
-    if [[ -f /root/naive/runtime.env ]]; then
-        source /root/naive/runtime.env
-        green "○ Found existing configuration for domain: $domain"
-        echo ""
-        
-        while true; do
-            read -rp "Do you want to use these settings? [Y/n]: " use_saved
-            use_saved=$(echo "$use_saved" | tr '[:upper:]' '[:lower:]' | xargs)
-            
-            case $use_saved in
-                n|no)
-                    yellow "○ OK, let's reconfigure everything"
-                    unset SSH_PORT proxyport domain email proxyname proxypwd
-                    break
-                    ;;
-                ""|y|yes)
-                    green "✓ Using saved configuration"
-                    green "  Domain: $domain"
-                    green "  Proxy port: $proxyport"
-                    green "  SSH port: $SSH_PORT"
-                    green "  Username: $proxyname"
-                    green "  Password: $proxypwd"
-                    echo ""
-                    SERVER_IP=$(curl -s --max-time 5 ifconfig.me 2>/dev/null || echo "unknown")
-                    return 0
-                    ;;
-                *)
-                    red "✗ Please answer y or n"
-                    continue
-                    ;;
-            esac
-        done
-    fi
+	if [[ -f /root/naive/runtime.env ]]; then
+		source /root/naive/runtime.env
+		green "○ Found existing configuration for domain: $domain"
+		echo ""
+		green "  Proxy port: $proxyport"
+		green "  SSH port: $SSH_PORT"
+		green "  Username: $proxyname"
+		green "  Password: $proxypwd"
+		[[ -n "$email" ]] && green "  Email: $email"
+		[[ -n "$REMOTE_SERVER" ]] && green "  Remote server: $REMOTE_SERVER"
+		echo ""
+		
+		while true; do
+			read -rp "Do you want to use these settings? [Y/n]: " use_saved
+			use_saved=$(echo "$use_saved" | tr '[:upper:]' '[:lower:]' | xargs)
+			
+			case $use_saved in
+				n|no)
+					yellow "○ OK, let's reconfigure everything"
+					unset SSH_PORT proxyport domain email proxyname proxypwd REMOTE_SERVER
+					break
+					;;
+				""|y|yes)
+					green "✓ Using saved configuration"
+					SERVER_IP=$(curl -s --max-time 5 ifconfig.me 2>/dev/null || echo "unknown")
+					return 0
+					;;
+				*)
+					red "✗ Please answer y or n"
+					continue
+					;;
+			esac
+		done
+	fi
     
     # --- SSH port ---
     while true; do
