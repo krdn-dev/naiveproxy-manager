@@ -66,14 +66,16 @@ install_webghost() {
 
     # Доставка бинарника
     if [[ ! -f /usr/local/bin/webghost ]]; then
-        local script_dir="$(cd "$(dirname "$0")" && pwd)"
+        local script_dir
+		script_dir="$(cd "$(dirname "$0")" && pwd)"
         if [[ -f "$script_dir/webghost" ]]; then
             cp "$script_dir/webghost" /usr/local/bin/webghost
             chmod +x /usr/local/bin/webghost
             green "✓ Installed WebGhost from local directory"
         else
             # ---- Проверка архитектуры ----
-            local arch="$(uname -m)"
+            local arch
+			arch="$(uname -m)"
             if [[ "$arch" != "x86_64" ]]; then
                 yellow "○ WebGhost binary is built for x86_64, but your architecture is ${arch}"
                 yellow "  The binary will likely NOT work on this system"
@@ -141,7 +143,7 @@ install_webghost() {
                 echo ""
                 red "✗ WebGhost install failed with exit code $exit_code"
                 yellow "  Log: $webghost_log"
-                cat "$webghost_log" | head -20 | sed 's/^/    /'
+                head -20 "$webghost_log" | sed 's/^/    /'
                 rm -f "$webghost_log"
                 return 1
             fi
@@ -201,13 +203,20 @@ save_runtime_config() {
         printf '%s' "$input"
     }
 
-    local safe_proxyport="$(_escape_for_source "$proxyport")"
-    local safe_proxyname="$(_escape_for_source "$proxyname")"
-    local safe_proxypwd="$(_escape_for_source "$proxypwd")"
-    local safe_domain="$(_escape_for_source "$domain")"
-    local safe_email="$(_escape_for_source "$email")"
-    local safe_ssh_port="$(_escape_for_source "$ssh_port")"
-    local safe_remote_server="$(_escape_for_source "${REMOTE_SERVER:-}")"
+    local safe_proxyport
+	safe_proxyport="$(_escape_for_source "$proxyport")"
+	local safe_proxyname
+	safe_proxyname="$(_escape_for_source "$proxyname")"
+	local safe_proxypwd	
+    safe_proxypwd="$(_escape_for_source "$proxypwd")"
+	local safe_domain
+    safe_domain="$(_escape_for_source "$domain")"
+	local safe_email
+    safe_email="$(_escape_for_source "$email")"
+	local safe_ssh_port
+    safe_ssh_port="$(_escape_for_source "$ssh_port")"
+	local safe_remote_server
+    safe_remote_server="$(_escape_for_source "${REMOTE_SERVER:-}")"
 
     cat > /root/naive/runtime.env << EOF
 # NaiveProxy Runtime Configuration - DO NOT EDIT MANUALLY
@@ -234,6 +243,7 @@ EOF
 # =====================================
 load_runtime_config() {
     if [[ -f /root/naive/runtime.env ]]; then
+		# shellcheck source=/dev/null
         source /root/naive/runtime.env
         return 0
     fi
@@ -319,12 +329,14 @@ backup_certificates() {
     
     # Загружаем конфигурацию, чтобы получить domain
     if [[ -f /root/naive/runtime.env ]]; then
+		# shellcheck source=/dev/null
         source /root/naive/runtime.env
     fi
     
     # Если domain все еще пустой, пробуем извлечь из сертификата
     if [[ -z "$domain" ]]; then
-        local cert_file=$(find /var/lib/caddy/.local/share/caddy /root/.local/share/caddy -name "*.crt" 2>/dev/null | head -1)
+        local cert_file
+        cert_file=$(find /var/lib/caddy/.local/share/caddy /root/.local/share/caddy -name "*.crt" 2>/dev/null | head -1)
         if [[ -n "$cert_file" ]]; then
             domain=$(openssl x509 -subject -noout -in "$cert_file" 2>/dev/null | sed -n 's/.*CN=\([^,]*\).*/\1/p')
         fi
@@ -348,24 +360,22 @@ backup_certificates() {
     
     local backup_file="$backup_dir/caddy_data_${domain}.tar.gz"
     
-	# Проверяем, что в директории есть хотя бы один сертификат
+    # Проверяем, что в директории есть хотя бы один сертификат
     if ! find "$caddy_data_dir" -name "*.crt" 2>/dev/null | grep -q .; then
         yellow "○ No certificate files found in $caddy_data_dir – backup skipped"
         return 1
     fi
-	
-    # Бэкапим
-    tar czf "$backup_file" -C "$(dirname "$caddy_data_dir")" "$(basename "$caddy_data_dir")" 2>/dev/null
-	
-	if [[ -s "$backup_file" ]]; then
-		green "✓ Backup created ($(du -h "$backup_file" | cut -f1))"
-	else
-		red "✗ Backup file is empty – something went wrong"
-		rm -f "$backup_file"
-		return 1
-	fi
     
-    if [[ $? -eq 0 ]]; then
+    # Бэкапим
+    if tar czf "$backup_file" -C "$(dirname "$caddy_data_dir")" "$(basename "$caddy_data_dir")" 2>/dev/null; then
+        if [[ -s "$backup_file" ]]; then
+            green "✓ Backup created ($(du -h "$backup_file" | cut -f1))"
+        else
+            red "✗ Backup file is empty – something went wrong"
+            rm -f "$backup_file"
+            return 1
+        fi
+        
         cat > "$backup_dir/metadata.txt" << EOF
 Domain: $domain
 Backup date: $(date)
@@ -374,10 +384,10 @@ Backup path: $caddy_data_dir
 Backup file: caddy_data_${domain}.tar.gz
 EOF
         green "✓ Complete Caddy data backed up to: $backup_file"
-		
-		# Keep only the last 5 backups
-		find "$backup_dir" -name "caddy_data_*.tar.gz" -type f | sort -r | tail -n +6 | xargs rm -f 2>/dev/null	
-	
+        
+        # Keep only the last 5 backups
+        find "$backup_dir" -name "caddy_data_*.tar.gz" -type f | sort -r | tail -n +6 | xargs rm -f 2>/dev/null
+        
         return 0
     else
         red "✗ Failed to backup Caddy data"
@@ -391,10 +401,11 @@ EOF
 restore_certificates() {
     local backup_dir="/root/naive/cert-backup"
     local backup_file=""
-    local silent=${1:-false} 
+    local silent=${1:-false}
     
     # Загружаем конфигурацию для получения domain
     if [[ -f /root/naive/runtime.env ]]; then
+		# shellcheck source=/dev/null
         source /root/naive/runtime.env
     fi
     
@@ -407,14 +418,14 @@ restore_certificates() {
         fi
     fi
     
-    # Если не нашли по домену, ищем любой бэкап caddy_data_
+    # Если не нашли по домену, ищем любой бэкап caddy_data_ (самый свежий)
     if [[ -z "$backup_file" ]]; then
-        backup_file=$(ls -t "$backup_dir"/caddy_data_*.tar.gz 2>/dev/null | head -1)
+        backup_file=$(find "$backup_dir" -maxdepth 1 -name "caddy_data_*.tar.gz" -printf '%T@ %p\n' 2>/dev/null | sort -nr | head -1 | cut -d' ' -f2-)
     fi
     
     # Если все еще не нашли, ищем старый формат certs_
     if [[ -z "$backup_file" ]]; then
-        backup_file=$(ls -t "$backup_dir"/certs_*.tar.gz 2>/dev/null | head -1)
+        backup_file=$(find "$backup_dir" -maxdepth 1 -name "certs_*.tar.gz" -printf '%T@ %p\n' 2>/dev/null | sort -nr | head -1 | cut -d' ' -f2-)
     fi
     
     if [[ -z "$backup_file" ]]; then
@@ -428,11 +439,13 @@ restore_certificates() {
     
     # Проверяем метаданные, если есть
     if [[ -f "$backup_dir/metadata.txt" ]]; then
-        local backup_expiry=$(grep "Certificate expiry:" "$backup_dir/metadata.txt" 2>/dev/null | cut -d: -f2- | xargs)
+        local backup_expiry
+        backup_expiry=$(grep "Certificate expiry:" "$backup_dir/metadata.txt" 2>/dev/null | cut -d: -f2- | xargs)
         if [[ -n "$backup_expiry" ]]; then
-            local expiry_epoch=$(date -d "$backup_expiry" +%s 2>/dev/null)
-            local now_epoch=$(date +%s)
-            
+            local expiry_epoch
+            expiry_epoch=$(date -d "$backup_expiry" +%s 2>/dev/null)
+            local now_epoch
+            now_epoch=$(date +%s)
             if [[ $expiry_epoch -le $now_epoch ]]; then
                 yellow "○ Backup certificate expired on $backup_expiry"
                 return 1
@@ -441,9 +454,8 @@ restore_certificates() {
         fi
     fi
     
-    local temp_dir=$(mktemp -d)
-    
-    # Функция очистки временной директории
+    local temp_dir
+    temp_dir=$(mktemp -d)
     cleanup_temp_dir() {
         if [[ -n "$temp_dir" ]] && [[ -d "$temp_dir" ]]; then
             rm -rf "$temp_dir"
@@ -451,8 +463,7 @@ restore_certificates() {
     }
     
     # Распаковываем во временную папку
-    tar xzf "$backup_file" -C "$temp_dir" 2>/dev/null
-    if [[ $? -ne 0 ]]; then
+    if ! tar xzf "$backup_file" -C "$temp_dir" 2>/dev/null; then
         red "✗ Failed to extract backup"
         cleanup_temp_dir
         return 1
@@ -473,38 +484,25 @@ restore_certificates() {
     
     # Ищем распакованную папку caddy
     local source_caddy_dir=""
-    
-    # Пробуем найти папку "caddy" в распакованном содержимом
     source_caddy_dir=$(find "$temp_dir" -type d -name "caddy" 2>/dev/null | head -1)
-    
-    # Если не нашли, пробуем найти папку "caddy-data" (старый формат с transform)
     if [[ -z "$source_caddy_dir" ]]; then
         source_caddy_dir=$(find "$temp_dir" -type d -name "caddy-data" 2>/dev/null | head -1)
     fi
     
-    # Если нашли — копируем содержимое
     if [[ -n "$source_caddy_dir" ]] && [[ -d "$source_caddy_dir" ]]; then
-        # Останавливаем Caddy перед восстановлением
         systemctl stop caddy 2>/dev/null
-        
-        # Удаляем старую папку
         rm -rf "$target_base/caddy"
-        # Копируем новую
-        cp -r "$source_caddy_dir" "$target_base/caddy"
-        
-        if [[ $? -eq 0 ]]; then
+        if cp -r "$source_caddy_dir" "$target_base/caddy"; then
             green "✓ Caddy data restored from backup to: $target_base/caddy"
             
-            # Проверяем, что сертификаты на месте
-            local restored_cert=$(find "$target_base/caddy" -name "*.crt" 2>/dev/null | head -1)
+            local restored_cert
+            restored_cert=$(find "$target_base/caddy" -name "*.crt" 2>/dev/null | head -1)
             if [[ -n "$restored_cert" ]]; then
                 green "✓ Certificate file found: $(basename "$restored_cert")"
-                
-                # Извлекаем домен из восстановленного сертификата
-                local restored_domain=$(openssl x509 -subject -noout -in "$restored_cert" 2>/dev/null | sed -n 's/.*CN=\([^,]*\).*/\1/p')
+                local restored_domain
+                restored_domain=$(openssl x509 -subject -noout -in "$restored_cert" 2>/dev/null | sed -n 's/.*CN=\([^,]*\).*/\1/p')
                 if [[ -n "$restored_domain" ]]; then
                     green "✓ Certificate domain: $restored_domain"
-                    # Обновляем domain в конфиге, если он был пустым
                     if [[ -z "$domain" ]] || [[ "$domain" != "$restored_domain" ]]; then
                         domain="$restored_domain"
                         save_runtime_config
@@ -512,7 +510,6 @@ restore_certificates() {
                 fi
             fi
             
-            # Запускаем Caddy заново
             systemctl start caddy 2>/dev/null
             sleep 3
             cleanup_temp_dir
@@ -525,13 +522,12 @@ restore_certificates() {
         fi
     else
         # Пробуем старый формат (прямо certificates)
-        local cert_dir=$(find "$temp_dir" -type d -name "certificates" 2>/dev/null | head -1)
+        local cert_dir
+        cert_dir=$(find "$temp_dir" -type d -name "certificates" 2>/dev/null | head -1)
         if [[ -n "$cert_dir" ]]; then
             systemctl stop caddy 2>/dev/null
             mkdir -p "$target_base/caddy"
-            cp -r "$cert_dir" "$target_base/caddy/certificates"
-            
-            if [[ $? -eq 0 ]]; then
+            if cp -r "$cert_dir" "$target_base/caddy/certificates"; then
                 green "✓ Certificates restored from backup (legacy format)"
                 systemctl start caddy 2>/dev/null
                 sleep 3
@@ -574,15 +570,21 @@ check_certificate_status() {
     echo -e " ${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${PLAIN}"
     echo ""
     
-    local cert_file=$(find /var/lib/caddy/.local/share/caddy /root/.local/share/caddy -name "${domain}.crt" 2>/dev/null | head -1)
+    local cert_file
+    cert_file=$(find /var/lib/caddy/.local/share/caddy /root/.local/share/caddy -name "${domain}.crt" 2>/dev/null | head -1)
     
     if [[ -n "$cert_file" ]] && [[ -f "$cert_file" ]]; then
-        local expiry_date=$(openssl x509 -enddate -noout -in "$cert_file" 2>/dev/null | cut -d= -f2)
-        local issuer=$(openssl x509 -issuer -noout -in "$cert_file" 2>/dev/null | sed 's/issuer=//')
+        local expiry_date
+        expiry_date=$(openssl x509 -enddate -noout -in "$cert_file" 2>/dev/null | cut -d= -f2)
+        local issuer
+        issuer=$(openssl x509 -issuer -noout -in "$cert_file" 2>/dev/null | sed 's/issuer=//')
         
-        local expiry_epoch=$(date -d "$expiry_date" +%s 2>/dev/null)
-        local now_epoch=$(date +%s)
-        local days_left=$(( (expiry_epoch - now_epoch) / 86400 ))
+        local expiry_epoch
+        expiry_epoch=$(date -d "$expiry_date" +%s 2>/dev/null)
+        local now_epoch
+        now_epoch=$(date +%s)
+        local days_left
+        days_left=$(( (expiry_epoch - now_epoch) / 86400 ))
         
         green "✓ Certificate found"
         echo -e "  ${GREEN}Domain:${PLAIN}     $domain"
@@ -613,7 +615,8 @@ check_certificate_status() {
         last_error=$(journalctl -u caddy --since "1 hour ago" --no-pager 2>/dev/null | grep -i "could not get certificate\|failed to obtain certificate" | tail -1)
         if [[ -n "$last_error" ]]; then
             # Извлекаем описание ошибки
-            local error_desc=$(echo "$last_error" | sed -n 's/.*"error":\s*"\([^"]*\)".*/\1/p' | tail -1)
+            local error_desc
+            error_desc=$(echo "$last_error" | sed -n 's/.*"error":\s*"\([^"]*\)".*/\1/p' | tail -1)
             [[ -n "$error_desc" ]] && echo -e "  ${RED}Error:${PLAIN} $error_desc"
             
             # Извлекаем retry after (время снятия лимита)
@@ -636,9 +639,12 @@ check_certificate_status() {
     echo ""
     
     # Проверяем логи Caddy за последние 7 дней
-    local rate_limit_count=$(journalctl -u caddy --since "7 days ago" 2>/dev/null | grep -ci "too many certificates")
-    local cert_errors=$(journalctl -u caddy --since "7 days ago" 2>/dev/null | grep -ci "failed to obtain certificate")
-    local remaining=$((5 - rate_limit_count))
+    local rate_limit_count
+    rate_limit_count=$(journalctl -u caddy --since "7 days ago" 2>/dev/null | grep -ci "too many certificates")
+    local cert_errors
+    cert_errors=$(journalctl -u caddy --since "7 days ago" 2>/dev/null | grep -ci "failed to obtain certificate")
+    local remaining
+    remaining=$((5 - rate_limit_count))
     
     echo -e "${GREEN}  Certificates issued (last 7 days):${PLAIN} $rate_limit_count/5"
     
@@ -683,7 +689,8 @@ check_certificate_status() {
     # Извлекаем domain и короткую версию Caddy из metadata.txt
     if [[ -f "$backup_dir/metadata.txt" ]]; then
         domain_from_backup=$(grep "^Domain:" "$backup_dir/metadata.txt" 2>/dev/null | cut -d: -f2- | xargs)
-        local full_version=$(grep "^Caddy version:" "$backup_dir/metadata.txt" 2>/dev/null | cut -d: -f2- | xargs)
+        local full_version
+        full_version=$(grep "^Caddy version:" "$backup_dir/metadata.txt" 2>/dev/null | cut -d: -f2- | xargs)
         # Оставляем только первую часть до пробела (v2.11.3)
         caddy_version_short=$(echo "$full_version" | awk '{print $1}')
     fi
@@ -697,8 +704,10 @@ check_certificate_status() {
         [[ -n "$caddy_version_short" ]] && echo -e "  ${GREEN}Caddy version:${PLAIN}    $caddy_version_short"
         
         if [[ -f "$backup_dir/metadata.txt" ]]; then
-            local backup_date=$(grep "Backup date:" "$backup_dir/metadata.txt" 2>/dev/null | cut -d: -f2- | xargs)
-            local backup_path=$(grep "Backup path:" "$backup_dir/metadata.txt" 2>/dev/null | cut -d: -f2- | xargs)
+            local backup_date
+            backup_date=$(grep "Backup date:" "$backup_dir/metadata.txt" 2>/dev/null | cut -d: -f2- | xargs)
+            local backup_path
+            backup_path=$(grep "Backup path:" "$backup_dir/metadata.txt" 2>/dev/null | cut -d: -f2- | xargs)
             
             [[ -n "$backup_date" ]] && echo -e "  ${GREEN}Backup date:${PLAIN}      $backup_date"
             [[ -n "$backup_path" ]] && echo -e "  ${GREEN}Source path:${PLAIN}      $backup_path"
@@ -721,7 +730,8 @@ check_certificate_status() {
             echo ""
             echo -e "  ${GREEN}Contents of${PLAIN} ${YELLOW}$(basename "$backup"):${PLAIN}"
             tar tzf "$backup" 2>/dev/null | head -10 | sed 's/^/  /'
-            local total=$(tar tzf "$backup" 2>/dev/null | wc -l)
+            local total
+            total=$(tar tzf "$backup" 2>/dev/null | wc -l)
             if [[ $total -gt 10 ]]; then
                 echo "  ... and $((total - 10)) more files"
             fi
@@ -772,14 +782,18 @@ check_certificate_valid() {
     fi
     
     # Fallback: проверяем только файл
-    local cert_file=$(find /var/lib/caddy/.local/share/caddy /root/.local/share/caddy -name "${domain}.crt" 2>/dev/null | head -1)
+    local cert_file
+    cert_file=$(find /var/lib/caddy/.local/share/caddy /root/.local/share/caddy -name "${domain}.crt" 2>/dev/null | head -1)
     if [[ -z "$cert_file" ]] || [[ ! -f "$cert_file" ]]; then
         return 1
     fi
     
-    local expiry_date=$(openssl x509 -enddate -noout -in "$cert_file" 2>/dev/null | cut -d= -f2)
-    local expiry_epoch=$(date -d "$expiry_date" +%s 2>/dev/null)
-    local now_epoch=$(date +%s)
+    local expiry_date
+    expiry_date=$(openssl x509 -enddate -noout -in "$cert_file" 2>/dev/null | cut -d= -f2)
+    local expiry_epoch
+    expiry_epoch=$(date -d "$expiry_date" +%s 2>/dev/null)
+    local now_epoch
+    now_epoch=$(date +%s)
     
     if [[ $expiry_epoch -le $now_epoch ]]; then
         return 1
@@ -804,7 +818,8 @@ check_certificate_working() {
     
     if [[ -n "$cert_info" ]]; then
         # Сертификат работает и доступен через сеть
-        local expiry_date=$(echo "$cert_info" | grep "notAfter=" | cut -d= -f2)
+        local expiry_date
+        expiry_date=$(echo "$cert_info" | grep "notAfter=" | cut -d= -f2)
         if [[ -n "$expiry_date" ]]; then
             echo "WORKING:$expiry_date"
             return 0
@@ -819,20 +834,25 @@ check_certificate_working() {
     fi
     
     # Проверка 3: Ищем файл сертификата на диске
-    local cert_file=$(find /var/lib/caddy/.local/share/caddy /root/.local/share/caddy -name "${domain}.crt" 2>/dev/null | head -1)
+    local cert_file
+    cert_file=$(find /var/lib/caddy/.local/share/caddy /root/.local/share/caddy -name "${domain}.crt" 2>/dev/null | head -1)
     
     if [[ -n "$cert_file" ]] && [[ -f "$cert_file" ]]; then
         # Проверяем, соответствует ли сертификат домену
-        local cert_domain=$(openssl x509 -subject -noout -in "$cert_file" 2>/dev/null | sed -n 's/.*CN=\([^,]*\).*/\1/p')
+        local cert_domain
+        cert_domain=$(openssl x509 -subject -noout -in "$cert_file" 2>/dev/null | sed -n 's/.*CN=\([^,]*\).*/\1/p')
         if [[ -n "$cert_domain" ]] && [[ "$cert_domain" != "$domain" ]]; then
             echo "WRONG_DOMAIN:$cert_domain"
             return 2
         fi
         
         # Проверяем срок действия
-        local expiry_date=$(openssl x509 -enddate -noout -in "$cert_file" 2>/dev/null | cut -d= -f2)
-        local expiry_epoch=$(date -d "$expiry_date" +%s 2>/dev/null)
-        local now_epoch=$(date +%s)
+        local expiry_date
+        expiry_date=$(openssl x509 -enddate -noout -in "$cert_file" 2>/dev/null | cut -d= -f2)
+        local expiry_epoch
+        expiry_epoch=$(date -d "$expiry_date" +%s 2>/dev/null)
+        local now_epoch
+        now_epoch=$(date +%s)
         
         if [[ $expiry_epoch -le $now_epoch ]]; then
             echo "EXPIRED:$expiry_date"
@@ -896,8 +916,10 @@ check_and_update_naive() {
     
     load_runtime_config
     
-    local current_version=$(caddy version 2>/dev/null | awk '{print $1}')
-    local latest_go_version=$(curl -s --max-time 10 https://go.dev/VERSION?m=text | head -n 1)
+    local current_version
+    current_version=$(caddy version 2>/dev/null | awk '{print $1}')
+    local latest_go_version
+    latest_go_version=$(curl -s --max-time 10 https://go.dev/VERSION?m=text | head -n 1)
     
     echo -e "${GREEN}Current Caddy version:${PLAIN} ${current_version:-not installed}"
     local latest_go_display="${latest_go_version#go}"
@@ -1200,6 +1222,7 @@ show_system_info() {
     fi
     
     if [[ -f /root/naive/runtime.env ]]; then
+		# shellcheck source=/dev/null
         source /root/naive/runtime.env
         green "✓ Configuration:   loaded"
         
@@ -1239,13 +1262,30 @@ show_system_info() {
         return 1
     fi
     
-    [[ -z "$domain" ]] && red "✗ Domain: missing" || green "✓ Domain:          $domain"
-    [[ -z "$proxyport" ]] && red "✗ Proxy port: missing" || green "✓ Proxy port:      $proxyport"
-    [[ -z "$proxyname" ]] && red "✗ Username: missing" || green "✓ Username:        $proxyname"
-    [[ -z "$proxypwd" ]] && red "✗ Password: missing" || green "✓ Password:        [set]"
+	if [[ -z "$domain" ]]; then
+		red "✗ Domain: missing"
+	else
+		green "✓ Domain:          $domain"
+	fi
+	if [[ -z "$proxyport" ]]; then
+		red "✗ Proxy port: missing"
+	else
+		green "✓ Proxy port:      $proxyport"
+	fi
+	if [[ -z "$proxyname" ]]; then
+		red "✗ Username: missing"
+	else
+		green "✓ Username:        $proxyname"
+	fi
+	if [[ -z "$proxypwd" ]]; then
+		red "✗ Password: missing"
+	else
+		green "✓ Password:        [set]"
+	fi
     
     # РЕАЛЬНАЯ ПРОВЕРКА СЕРТИФИКАТА
-    local cert_status=$(check_certificate_working "$domain")
+    local cert_status
+    cert_status=$(check_certificate_working "$domain")
     
     case $cert_status in
         WORKING:*)
@@ -1318,13 +1358,13 @@ show_system_info() {
         yellow "○ Could not determine external IP"
     fi
 	
-    echo -e "${YELLOW}  Public ports (accessible from internet):${PLAIN}"
-    PUBLIC_PORTS=$(ss -tlnp 2>/dev/null | grep -v "127.0.0.1" | grep -v "::1" | awk '{print $4}' | grep -oE ':[0-9]+$' | sort -u | sed 's/://')
-    if [[ -n "$PUBLIC_PORTS" ]]; then
-        echo "$PUBLIC_PORTS" | sed 's/^/  /'
-    else
-        echo "  none"
-    fi
+	echo -e "${YELLOW}  Public ports (accessible from internet):${PLAIN}"
+	PUBLIC_PORTS=$(ss -tlnp 2>/dev/null | grep -v "127.0.0.1" | grep -v "::1" | awk '{print $4}' | grep -oE ':[0-9]+$' | sort -u | sed 's/://' | tr '\n' ' ')
+	if [[ -n "$PUBLIC_PORTS" ]]; then
+		echo "  ${PUBLIC_PORTS}"
+	else
+		echo "  none"
+	fi
     
     show_footer
 }
@@ -1539,6 +1579,7 @@ fi
 if [[ -f /root/naive/runtime.env ]]; then
     # Безопасно загружаем конфиг, игнорируя ошибки
     set -a
+	# shellcheck source=/dev/null
     source /root/naive/runtime.env 2>/dev/null
     set +a
     if [[ -z "$domain" ]]; then
@@ -1703,7 +1744,7 @@ enable_oracle_epel() {
 	fi
 	ol_version="${ol_version:-8}"
 	if ! dnf repolist 2>/dev/null | grep -q "ol${ol_version}_developer_EPEL"; then
-		${PACKAGE_INSTALL[os_idx]} oracle-epel-release-el${ol_version} -y 2>/dev/null
+		${PACKAGE_INSTALL[os_idx]} oracle-epel-release-el"${ol_version}" -y 2>/dev/null
 	fi
 }
 
@@ -1748,7 +1789,8 @@ check_system_requirements() {
     fi
 
     # Disk space check (minimum 2 GB)
-    local free_gb=$(df -BG / 2>/dev/null | awk 'NR==2 {gsub(/G/,"",$4); print $4}')
+    local free_gb
+    free_gb=$(df -BG / 2>/dev/null | awk 'NR==2 {gsub(/G/,"",$4); print $4}')
     if [[ -z "$free_gb" ]] || [[ ${free_gb:-0} -lt 2 ]]; then
         red "Not enough free disk space (need ≥2 GB, have ${free_gb:-0}G)"
         exit 1
@@ -2091,7 +2133,8 @@ setup_swap() {
     fi
     
     # Отображаем размер в ГБ для удобства (с поддержкой дробных через bc)
-    local SWAP_SIZE_GB=$(echo "scale=1; $SWAP_MB/1024" | bc 2>/dev/null || echo "$((SWAP_MB/1024))")
+    local SWAP_SIZE_GB
+    SWAP_SIZE_GB=$(echo "scale=1; $SWAP_MB/1024" | bc 2>/dev/null || echo "$((SWAP_MB/1024))")
     yellow "  Low memory detected (${TOTAL_RAM}MB). Creating ${SWAP_SIZE_GB}GB swap file ..."
     
     # Отключаем и удаляем старый swap-файл, если он существует (но не активен)
@@ -2373,6 +2416,7 @@ install_go() {
 
     # Добавляем PATH в .bashrc, если ещё нет
     if ! grep -q "/usr/local/go/bin" ~/.bashrc; then
+		# shellcheck disable=SC2016
         echo 'export PATH=$PATH:/usr/local/go/bin' >> ~/.bashrc
     fi
     export PATH=$PATH:/usr/local/go/bin
@@ -2400,7 +2444,8 @@ auto_detect_domain() {
     yellow "→ Attempting to detect domain via reverse DNS (PTR) for IP: $server_ip"
     
     # Convert IP to reverse lookup format (e.g., 1.2.3.4 -> 4.3.2.1.in-addr.arpa)
-    local reverse_ip=$(echo "$server_ip" | awk -F. '{print $4"."$3"."$2"."$1".in-addr.arpa"}')
+    local reverse_ip
+    reverse_ip=$(echo "$server_ip" | awk -F. '{print $4"."$3"."$2"."$1".in-addr.arpa"}')
     
     # Try DoH first
     if command -v curl &>/dev/null; then
@@ -2612,6 +2657,7 @@ input_parameters() {
     echo -e " ${BLUE}. . . . . . . . . . . . .${PLAIN}"
     
 	if [[ -f /root/naive/runtime.env ]]; then
+		# shellcheck source=/dev/null
 		source /root/naive/runtime.env
 		yellow "○ Found existing configuration"
 		echo ""
@@ -2699,7 +2745,8 @@ input_parameters() {
                 if ss -tlnp | awk -v p=":${proxyport}" '$4 ~ p {exit 0} END {exit 1}'; then
                     red "✗ Port $proxyport is already in use by another process!"
                     # Предлагаем альтернативные порты
-                    local alt_port=$(get_free_port "tcp" 8443 2087 2096 8080)
+                    local alt_port
+                    alt_port=$(get_free_port "tcp" 8443 2087 2096 8080)
                     if [[ "$alt_port" != "0" ]]; then
                         echo ""
                         yellow "○ Alternative free ports found: $alt_port"
@@ -2725,7 +2772,8 @@ input_parameters() {
                 proxyport=8443
                 if ss -tlnp | awk -v p=":${proxyport}" '$4 ~ p {exit 0} END {exit 1}'; then
                     red "✗ Port $proxyport is already in use by another process!"
-                    local alt_port=$(get_free_port "tcp" 443 2087 2096 8080)
+                    local alt_port
+                    alt_port=$(get_free_port "tcp" 443 2087 2096 8080)
                     if [[ "$alt_port" != "0" ]]; then
                         echo ""
                         yellow "○ Alternative free ports found: $alt_port"
@@ -2758,7 +2806,8 @@ input_parameters() {
                     if ss -tlnp | awk -v p=":${proxyport}" '$4 ~ p {exit 0} END {exit 1}'; then
                         red "✗ Port $proxyport is already in use by another process!"
                         # Для кастомного порта тоже предложим альтернативы
-                        local alt_port=$(get_free_port "tcp" 8443 2087 2096 8080)
+                        local alt_port
+                        alt_port=$(get_free_port "tcp" 8443 2087 2096 8080)
                         if [[ "$alt_port" != "0" ]]; then
                             echo ""
                             yellow "○ Alternative free ports found: $alt_port"
@@ -3164,7 +3213,8 @@ restore_users_from_registry() {
     [[ ! -f "$registry" ]] && return 0
 
     # Проверяем, есть ли уже пользователи в Caddyfile (кроме админа)
-    local existing_users=$(grep -c "basic_auth" /etc/caddy/Caddyfile 2>/dev/null || echo 0)
+    local existing_users
+    existing_users=$(grep -c "basic_auth" /etc/caddy/Caddyfile 2>/dev/null || echo 0)
     if [[ $existing_users -gt 1 ]]; then
         yellow "○ Existing users found in Caddyfile, skipping restore"
         return 0
@@ -3483,7 +3533,8 @@ increase_limits() {
     add_limit "root" "hard" "nofile" "$LIMIT_VALUE"
 
     # Проверяем и увеличиваем общесистемный лимит fs.file-max при необходимости
-    local current_fs_max=$(sysctl -n fs.file-max 2>/dev/null)
+    local current_fs_max
+    current_fs_max=$(sysctl -n fs.file-max 2>/dev/null)
     if [[ -n "$current_fs_max" ]] && [[ $current_fs_max -lt $LIMIT_VALUE ]]; then
         yellow "  ○ System fs.file-max ($current_fs_max) is lower than desired limit ($LIMIT_VALUE). Increasing..."
         echo "fs.file-max = $LIMIT_VALUE" > /etc/sysctl.d/99-naiveproxy-file-max.conf
@@ -3597,9 +3648,24 @@ show_install_checklist() {
     fi
 
     # ---- Ports (SSH, 80, 443) ----
-    ss -tlnp | grep -q ":$ssh_port " && green "✓ Port $ssh_port (SSH): listening" || { yellow "○ Port $ssh_port (SSH): not listening"; ((warn++)); }
-    ss -tlnp | grep -q ":80 " && green "✓ Port 80: listening" || { yellow "○ Port 80: not listening"; ((warn++)); }
-    ss -tlnp | grep -q ":443 " && green "✓ Port 443: listening" || { yellow "○ Port 443: not listening"; ((warn++)); }
+    if ss -tlnp | grep -q ":$ssh_port "; then
+		green "✓ Port $ssh_port (SSH): listening"
+	else
+		yellow "○ Port $ssh_port (SSH): not listening"
+		((warn++))
+	fi
+	if ss -tlnp | grep -q ":80 "; then
+		green "✓ Port 80: listening"
+	else
+		yellow "○ Port 80: not listening"
+		((warn++))
+	fi
+	if ss -tlnp | grep -q ":443 "; then
+		green "✓ Port 443: listening"
+	else
+		yellow "○ Port 443: not listening"
+		((warn++))
+	fi
 
     # ---- Firewall and port 80 reachability for ACME ----
     if is_port_open_in_firewall 80; then
@@ -3612,9 +3678,24 @@ show_install_checklist() {
     case $SYSTEM in
         "Debian"|"Ubuntu")
             if command -v ufw &>/dev/null && ufw status | grep -q "Status: active"; then
-                ufw status | grep -q "$ssh_port/tcp.*ALLOW" && green "✓ UFW: port $ssh_port (SSH) allowed" || { yellow "○ UFW: port $ssh_port (SSH) rule missing"; ((warn++)); }
-                ufw status | grep -q "80/tcp.*ALLOW" && green "✓ UFW: port 80 allowed" || { yellow "○ UFW: port 80 rule missing"; ((warn++)); }
-                ufw status | grep -q "443/tcp.*ALLOW" && green "✓ UFW: port 443 allowed" || { yellow "○ UFW: port 443 rule missing"; ((warn++)); }
+                if ufw status | grep -q "$ssh_port/tcp.*ALLOW"; then
+					green "✓ UFW: port $ssh_port (SSH) allowed"
+				else
+					yellow "○ UFW: port $ssh_port (SSH) rule missing"
+					((warn++))
+				fi
+				if ufw status | grep -q "80/tcp.*ALLOW"; then
+					green "✓ UFW: port 80 allowed"
+				else
+					yellow "○ UFW: port 80 rule missing"
+					((warn++))
+				fi
+				if ufw status | grep -q "443/tcp.*ALLOW"; then
+					green "✓ UFW: port 443 allowed"
+				else
+					yellow "○ UFW: port 443 rule missing"
+					((warn++))
+				fi
             else
                 yellow "○ UFW: not active"
                 ((warn++))
@@ -3622,9 +3703,24 @@ show_install_checklist() {
             ;;
         "CentOS"|"Fedora"|"AlmaLinux"|"Rocky Linux"|"Oracle Linux")
             if command -v firewall-cmd &>/dev/null && systemctl is-active --quiet firewalld; then
-                firewall-cmd --list-ports 2>/dev/null | grep -q "$ssh_port/tcp" && green "✓ firewalld: port $ssh_port (SSH) allowed" || { yellow "○ firewalld: port $ssh_port (SSH) not allowed"; ((warn++)); }
-                firewall-cmd --list-ports 2>/dev/null | grep -q "80/tcp" && green "✓ firewalld: port 80 allowed" || { yellow "○ firewalld: port 80 not allowed"; ((warn++)); }
-                firewall-cmd --list-ports 2>/dev/null | grep -q "443/tcp" && green "✓ firewalld: port 443 allowed" || { yellow "○ firewalld: port 443 not allowed"; ((warn++)); }
+                if firewall-cmd --list-ports 2>/dev/null | grep -q "$ssh_port/tcp"; then
+					green "✓ firewalld: port $ssh_port (SSH) allowed"
+				else
+					yellow "○ firewalld: port $ssh_port (SSH) not allowed"
+					((warn++))
+				fi
+				if firewall-cmd --list-ports 2>/dev/null | grep -q "80/tcp"; then
+					green "✓ firewalld: port 80 allowed"
+				else
+					yellow "○ firewalld: port 80 not allowed"
+					((warn++))
+				fi
+				if firewall-cmd --list-ports 2>/dev/null | grep -q "443/tcp"; then
+					green "✓ firewalld: port 443 allowed"
+				else
+					yellow "○ firewalld: port 443 not allowed"
+					((warn++))
+				fi
             else
                 yellow "○ firewalld: not active"
                 ((warn++))
@@ -3637,13 +3733,19 @@ show_install_checklist() {
     esac
 
     # ---- SSL certificate ----
-    local cert_file=$(find /var/lib/caddy/.local/share/caddy /root/.local/share/caddy -name "${domain}.crt" 2>/dev/null | head -1)
+    local cert_file
+    cert_file=$(find /var/lib/caddy/.local/share/caddy /root/.local/share/caddy -name "${domain}.crt" 2>/dev/null | head -1)
     if [[ -n "$cert_file" ]]; then
-        local cert_expiry=$(openssl x509 -enddate -noout -in "$cert_file" 2>/dev/null | cut -d= -f2)
-        local issuer=$(openssl x509 -issuer -noout -in "$cert_file" 2>/dev/null | sed 's/issuer=//')
-        local expiry_epoch=$(date -d "$cert_expiry" +%s 2>/dev/null)
-        local now_epoch=$(date +%s)
-        local days_left=$(( (expiry_epoch - now_epoch) / 86400 ))
+        local cert_expiry
+        cert_expiry=$(openssl x509 -enddate -noout -in "$cert_file" 2>/dev/null | cut -d= -f2)
+        local issuer
+        issuer=$(openssl x509 -issuer -noout -in "$cert_file" 2>/dev/null | sed 's/issuer=//')
+        local expiry_epoch
+        expiry_epoch=$(date -d "$cert_expiry" +%s 2>/dev/null)
+        local now_epoch
+        now_epoch=$(date +%s)
+        local days_left
+        days_left=$(( (expiry_epoch - now_epoch) / 86400 ))
         if [[ $days_left -gt 0 ]]; then
             green "✓ SSL certificate: valid until $cert_expiry ($days_left days left)"
             echo -e "  ${GREEN}Issuer:${PLAIN} $issuer"
@@ -3657,12 +3759,23 @@ show_install_checklist() {
     fi
 
     # ---- Client config ----
-    [[ -f /root/naive/naive-client.json ]] && green "✓ Client config: /root/naive/naive-client.json" || { red "✗ Client config: missing"; ((fail++)); }
-    [[ -f /root/naive/naive-url.txt ]] && green "✓ Import link: /root/naive/naive-url.txt" || { red "✗ Import link: missing"; ((fail++)); }
+	if [[ -f /root/naive/naive-client.json ]]; then
+		green "✓ Client config: /root/naive/naive-client.json"
+	else
+		red "✗ Client config: missing"
+		((fail++))
+	fi
+	if [[ -f /root/naive/naive-url.txt ]]; then
+		green "✓ Import link: /root/naive/naive-url.txt"
+	else
+		red "✗ Import link: missing"
+		((fail++))
+	fi
 
     # ---- fail2ban ----
     if command -v fail2ban-client &>/dev/null && systemctl is-active --quiet fail2ban; then
-        local banned=$(fail2ban-client status sshd 2>/dev/null | grep "Currently banned:" | awk '{print $4}')
+        local banned
+        banned=$(fail2ban-client status sshd 2>/dev/null | grep "Currently banned:" | awk '{print $4}')
         green "✓ fail2ban: active (banned: ${banned:-0})"
     else
         yellow "○ fail2ban: not active"
@@ -3709,7 +3822,8 @@ show_install_checklist() {
     fi
 
     # ---- External reachability of port 443 ----
-    local server_ip=$(curl -s --max-time 3 ifconfig.me 2>/dev/null || echo "unknown")
+    local server_ip
+    server_ip=$(curl -s --max-time 3 ifconfig.me 2>/dev/null || echo "unknown")
     if [[ "$server_ip" != "unknown" ]]; then
         if timeout 3 bash -c "echo >/dev/tcp/$server_ip/443" 2>/dev/null; then
             green "✓ Port 443: reachable from internet"
@@ -3994,6 +4108,7 @@ uninstall_naiveproxy() {
     rm -rf /root/tmp /root/go /root/.cache/go-build
     
     # Удаление PATH Go из .bashrc (если строка была добавлена)
+	# shellcheck disable=SC2016
     sed -i '/export PATH=\$PATH:\/usr\/local\/go\/bin/d' ~/.bashrc
     
     # =================================================================
@@ -4071,6 +4186,7 @@ show_config() {
     fi
     
     if [[ -f /root/naive/runtime.env ]]; then
+		# shellcheck source=/dev/null
         source /root/naive/runtime.env
     else
         yellow "○ Configuration file not found, some values may be missing"
@@ -4131,7 +4247,8 @@ show_user_details() {
     local password="$3"
     local name="$4"
     local created="$5"
-    local user_dir="/root/naive/users/user_$(printf "%03d" $id)_${username}"
+    local user_dir
+	user_dir="/root/naive/users/user_$(printf "%03d" "$id")_${username}"
     local json_file="$user_dir/config.json"
     local url_file="$user_dir/url.txt"
     local url=""
@@ -4227,9 +4344,12 @@ show_user_registry() {
             
             local short_username="${username:0:8}"
             local short_name="${name:0:28}"
-            local padded_id=$(printf "%4s" "$id")
-            local name_padding=$(printf '%*s' $((30 - ${#short_name})) "")
-            local user_padding=$(printf '%*s' $((8 - ${#short_username})) "")
+            local padded_id
+            padded_id=$(printf "%4s" "$id")
+            local name_padding
+            name_padding=$(printf '%*s' $((30 - ${#short_name})) "")
+            local user_padding
+            user_padding=$(printf '%*s' $((8 - ${#short_username})) "")
                         
             echo -e "  ${padded_id} ${BLUE}|${PLAIN} ${short_name}${name_padding} ${BLUE}|${PLAIN} ${short_username}${user_padding} ${BLUE}|${PLAIN} ${created}"
         done < /root/naive/registry.txt
@@ -4248,7 +4368,8 @@ show_user_registry() {
     read -rp "Enter ID to view full details (or 0 to skip): " view_id
     
     if [[ "$view_id" != "0" ]] && [[ -n "$view_id" ]]; then
-        local user_data=$(grep "^[[:space:]]*${view_id}[[:space:]]*|" /root/naive/registry.txt 2>/dev/null)
+        local user_data
+        user_data=$(grep "^[[:space:]]*${view_id}[[:space:]]*|" /root/naive/registry.txt 2>/dev/null)
         
         if [[ -z "$user_data" ]]; then
             red "✗ User not found"
@@ -4348,8 +4469,10 @@ add_new_user() {
     done
     
     # Генерируем учётные данные
-    local username=$(openssl rand -hex 4)
-    local password=$(openssl rand -hex 12)
+    local username
+    username=$(openssl rand -hex 4)
+    local password
+    password=$(openssl rand -hex 12)
     
     # Определяем следующий ID
     local next_id=1
@@ -4357,7 +4480,8 @@ add_new_user() {
         next_id=$(($(tail -1 /root/naive/registry.txt | cut -d'|' -f1 | xargs) + 1))
     fi
     
-    local created_date=$(date +%Y-%m-%d)
+    local created_date
+    created_date=$(date +%Y-%m-%d)
     
     # --- Атомарное обновление Caddyfile через вспомогательную функцию ---
     if ! modify_caddyfile "add" "$username" "$password"; then
@@ -4375,7 +4499,8 @@ add_new_user() {
     fi
     
     # --- Создаём данные пользователя ---
-    local user_dir="/root/naive/users/user_$(printf "%03d" $next_id)_${username}"
+    local user_dir
+	user_dir="/root/naive/users/user_$(printf "%03d" "$next_id")_${username}"
     mkdir -p "$user_dir"
     
     cat > "$user_dir/config.json" << EOF
@@ -4443,9 +4568,12 @@ remove_user() {
                 
                 local short_username="${username:0:8}"
                 local short_name="${name:0:28}"
-                local padded_id=$(printf "%4s" "$id")
-                local name_padding=$(printf '%*s' $((30 - ${#short_name})) "")
-                local user_padding=$(printf '%*s' $((8 - ${#short_username})) "")
+                local padded_id
+                padded_id=$(printf "%4s" "$id")
+                local name_padding
+                name_padding=$(printf '%*s' $((30 - ${#short_name})) "")
+                local user_padding
+                user_padding=$(printf '%*s' $((8 - ${#short_username})) "")
                             
                 echo -e "  ${padded_id} ${BLUE}|${PLAIN} ${short_name}${name_padding} ${BLUE}|${PLAIN} ${short_username}${user_padding} ${BLUE}|${PLAIN} ${created}"
             done < /root/naive/registry.txt
@@ -4467,7 +4595,8 @@ remove_user() {
             break
         fi
         
-        local user_data=$(grep "^[[:space:]]*${remove_id}[[:space:]]*|" /root/naive/registry.txt 2>/dev/null)
+        local user_data
+        user_data=$(grep "^[[:space:]]*${remove_id}[[:space:]]*|" /root/naive/registry.txt 2>/dev/null)
         if [[ -z "$user_data" ]]; then
             red "✗ User not found"
             read -rp "Press Enter to continue ..."
@@ -4509,7 +4638,7 @@ remove_user() {
         
         # --- Удаляем данные пользователя ---
         sed -i "/^[[:space:]]*${id}[[:space:]]*|/d" /root/naive/registry.txt
-        rm -rf "/root/naive/users/user_$(printf "%03d" $id)_${username}"
+        rm -rf "/root/naive/users/user_$(printf "%03d" "$id")_${username}"
         
         green "✓ User '$name' removed"
         echo ""
