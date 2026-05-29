@@ -1758,7 +1758,7 @@ check_system_requirements() {
         exit 1
     fi
 
-    # Clear package manager locks for RHEL-based systems
+    # Clear package manager locks for RHEL-based systems (detect by files)
     if [[ -f /etc/redhat-release ]] || [[ -f /etc/almalinux-release ]] || [[ -f /etc/rocky-release ]] || [[ -f /etc/oracle-release ]]; then
         yellow "  Checking for dnf/yum/rpm locks ..."
         systemctl stop dnf-automatic.timer 2>/dev/null || true
@@ -1769,12 +1769,19 @@ check_system_requirements() {
         green "✓ RPM locks cleared"
     fi
 
-    # Check apt/dpkg locks
+    # Check apt/dpkg locks (Debian/Ubuntu)
     if command -v dpkg &>/dev/null; then
         if pgrep -x "apt" > /dev/null || pgrep -x "dpkg" > /dev/null || pgrep -x "apt-get" > /dev/null; then
             red "Another apt/dpkg process is running. Wait or kill it"
             exit 1
         fi
+        # Also clear apt locks if present (optional)
+        yellow "  Checking for apt locks ..."
+        systemctl stop unattended-upgrades 2>/dev/null || true
+        fuser -k /var/lib/dpkg/lock-frontend 2>/dev/null || true
+        fuser -k /var/lib/dpkg/lock 2>/dev/null || true
+        dpkg --configure -a 2>/dev/null || true
+        green "✓ Apt locks cleared"
     fi
 
     # Internet check via HTTP (more reliable than ping)
@@ -3866,24 +3873,6 @@ show_install_checklist() {
 # =====================================
 install_naiveproxy() {
     show_header
-	
-    # ---- Clear package manager locks ----
-    if [[ "$SYSTEM" == "Debian" ]] || [[ "$SYSTEM" == "Ubuntu" ]]; then
-        yellow "  Checking for apt locks ..."
-        systemctl stop unattended-upgrades 2>/dev/null || true
-        fuser -k /var/lib/dpkg/lock-frontend 2>/dev/null || true
-        fuser -k /var/lib/dpkg/lock 2>/dev/null || true
-        dpkg --configure -a 2>/dev/null || true
-        green "✓ Apt locks cleared"
-    elif [[ "$SYSTEM" == "CentOS" ]] || [[ "$SYSTEM" == "AlmaLinux" ]] || [[ "$SYSTEM" == "Rocky Linux" ]] || [[ "$SYSTEM" == "Oracle Linux" ]] || [[ "$SYSTEM" == "Fedora" ]]; then
-        yellow "  Checking for dnf/yum/rpm locks ..."
-        systemctl stop dnf-automatic.timer 2>/dev/null || true
-        systemctl stop dnf-makecache.timer 2>/dev/null || true
-        pkill -f "dnf|yum|rpm" 2>/dev/null || true
-        rm -f /var/run/dnf.pid /var/lib/rpm/.rpm.lock /var/lib/rpm/__db* 2>/dev/null
-        rpm --rebuilddb 2>/dev/null || true
-        green "✓ RPM locks cleared"
-    fi
     
 	if is_naive_installed; then
 		yellow "  NaiveProxy is already installed!"
