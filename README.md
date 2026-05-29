@@ -12,7 +12,7 @@
 ```bash
 wget -O naivemanager.sh https://raw.githubusercontent.com/krdn-dev/naiveproxy-manager/main/naivemanager.sh
 or
-curl -O https://raw.githubusercontent.com/krdn-dev/naiveproxy-installer/main/naivemanager.sh && bash naivemanager.sh
+curl -O https://raw.githubusercontent.com/krdn-dev/naiveproxy-installer/main/naivemanager.sh
 
 chmod +x naivemanager.sh
 sudo ./naivemanager.sh
