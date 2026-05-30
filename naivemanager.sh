@@ -1043,7 +1043,14 @@ if ! command -v xcaddy &>/dev/null; then
     go install github.com/caddyserver/xcaddy/cmd/xcaddy@latest
 fi
 
-xcaddy build --with github.com/caddyserver/forwardproxy@caddy2=github.com/klzgrad/forwardproxy@naive --with github.com/mholt/caddy-ratelimit >> "$LOG" 2>&1
+            xcaddy build \
+                --with github.com/caddyserver/forwardproxy@caddy2=github.com/klzgrad/forwardproxy@naive \
+                --with github.com/mholt/caddy-ratelimit \
+                --with github.com/rushiiMachine/caddy-ja3 \
+                --with github.com/rushiiMachine/caddy-deflate \
+                --with github.com/ueffel/caddy-brotli \
+                --with github.com/mholt/caddy-l4 \
+				>> "$LOG" 2>&1
 
 if [[ -f ./caddy ]]; then
     mv ./caddy /usr/bin/caddy
@@ -3281,9 +3288,9 @@ create_configs() {
     admin 127.0.0.1:2019
     email ${email}
     
-    ja3 {
-        sort_extensions
-    }
+	ja3 {
+		sort_extensions
+	}
 }
 
 :${proxyport}, ${domain}:${proxyport} {
