@@ -38,24 +38,6 @@ domain=""
 email=""
 
 # =====================================
-# Common Caddy build plugins (used in multiple places)
-# =====================================
-CADDY_PLUGINS=(
-    "--with"
-    "github.com/caddyserver/forwardproxy@caddy2=github.com/klzgrad/forwardproxy@naive"
-    "--with"
-    "github.com/mholt/caddy-ratelimit"
-    "--with"
-    "github.com/rushiiMachine/caddy-ja3"
-    "--with"
-    "github.com/rushiiMachine/caddy-deflate"
-    "--with"
-    "github.com/ueffel/caddy-brotli"
-    "--with"
-    "github.com/mholt/caddy-l4"
-)
-
-# =====================================
 # Definition of the system
 # =====================================
 REGEX=("debian" "ubuntu" "centos|red hat|kernel" "oracle linux" "alma" "rocky" "fedora")
@@ -1076,7 +1058,14 @@ if ! command -v xcaddy &>/dev/null; then
     go install github.com/caddyserver/xcaddy/cmd/xcaddy@latest
 fi
 
-xcaddy build "${CADDY_PLUGINS[@]}" >> "$LOG" 2>&1
+xcaddy build \
+    --with github.com/caddyserver/forwardproxy@caddy2=github.com/klzgrad/forwardproxy@naive \
+    --with github.com/mholt/caddy-ratelimit \
+    --with github.com/rushiiMachine/caddy-ja3 \
+    --with github.com/rushiiMachine/caddy-deflate \
+    --with github.com/ueffel/caddy-brotli \
+    --with github.com/mholt/caddy-l4 \
+    >> "$LOG" 2>&1
 
 if [[ -f ./caddy ]]; then
     mv ./caddy /usr/bin/caddy
@@ -1586,7 +1575,13 @@ if [[ -f /usr/bin/caddy ]]; then
             export PATH=$PATH:/usr/local/go/bin:$GOBIN
             mkdir -p /root/tmp && export TMPDIR=/root/tmp
 			
-            xcaddy build "${CADDY_PLUGINS[@]}"
+            xcaddy build \
+				--with github.com/caddyserver/forwardproxy@caddy2=github.com/klzgrad/forwardproxy@naive \
+				--with github.com/mholt/caddy-ratelimit \
+				--with github.com/rushiiMachine/caddy-ja3 \
+				--with github.com/rushiiMachine/caddy-deflate \
+				--with github.com/ueffel/caddy-brotli \
+				--with github.com/mholt/caddy-l4
                 
             if [[ -f ./caddy ]]; then
                 mv -f ./caddy /usr/bin/caddy
@@ -3045,7 +3040,14 @@ build_caddy() {
 
     local logfile="/tmp/caddy-build-$$.log"
 	
-    xcaddy build "${CADDY_PLUGINS[@]}" > "$logfile" 2>&1 &
+    xcaddy build \
+    --with github.com/caddyserver/forwardproxy@caddy2=github.com/klzgrad/forwardproxy@naive \
+    --with github.com/mholt/caddy-ratelimit \
+    --with github.com/rushiiMachine/caddy-ja3 \
+    --with github.com/rushiiMachine/caddy-deflate \
+    --with github.com/ueffel/caddy-brotli \
+    --with github.com/mholt/caddy-l4 \
+    > "$logfile" 2>&1 &
 	
     local build_pid=$!
 
