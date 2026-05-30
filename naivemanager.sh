@@ -28,7 +28,7 @@ blue() { echo -e "${BLUE}${1}${PLAIN}"; }
 # =====================================
 # Global variables
 # =====================================
-REMOTE_SERVER=""
+remote_server=""
 ssh_port=22
 os_idx=0
 proxyport=""
@@ -38,12 +38,45 @@ domain=""
 email=""
 
 # =====================================
+# Common Caddy build plugins (used in multiple places)
+# =====================================
+CADDY_PLUGINS=(
+    "--with"
+    "github.com/caddyserver/forwardproxy@caddy2=github.com/klzgrad/forwardproxy@naive"
+    "--with"
+    "github.com/mholt/caddy-ratelimit"
+    "--with"
+    "github.com/rushiiMachine/caddy-ja3"
+    "--with"
+    "github.com/rushiiMachine/caddy-deflate"
+    "--with"
+    "github.com/ueffel/caddy-brotli"
+    "--with"
+    "github.com/mholt/caddy-l4"
+)
+
+# =====================================
 # Definition of the system
 # =====================================
 REGEX=("debian" "ubuntu" "centos|red hat|kernel" "oracle linux" "alma" "rocky" "fedora")
 RELEASE=("Debian" "Ubuntu" "CentOS" "Oracle Linux" "AlmaLinux" "Rocky Linux" "Fedora")
 PACKAGE_UPDATE=("apt-get update" "apt-get update" "yum -y update" "yum -y update" "yum -y update" "yum -y update" "yum -y update")
 PACKAGE_INSTALL=("apt -y install" "apt -y install" "yum -y install" "yum -y install" "yum -y install" "yum -y install" "yum -y install")
+
+# =====================================
+# Package lists for easier maintenance
+# =====================================
+# Essential tools (curl, wget, openssl, tar) - used in install_essential_tools
+readonly ESSENTIAL_CMDS=("curl" "wget" "openssl" "tar")
+
+# Common packages for all systems
+COMMON_PACKAGES=("git" "sudo" "dos2unix" "qrencode" "bc" "shellcheck")
+
+# Debian/Ubuntu specific packages
+DEBIAN_PACKAGES=("dnsutils" "build-essential")
+
+# RHEL/CentOS/Fedora/Alma/Rocky/Oracle specific packages
+RHEL_PACKAGES=("epel-release" "bind-utils" "gcc" "gcc-c++" "make")
 
 # =====================================
 # Function: Quote string for safe insertion into shell config file
@@ -119,7 +152,7 @@ install_webghost() {
     # Запуск webghost install (сайт + systemd-таймер)
     yellow "  Setting up website and traffic simulation timer ..."
     local args=("$domain")
-    [[ -n "${REMOTE_SERVER:-}" ]] && args+=("$REMOTE_SERVER")
+    [[ -n "${remote_server:-}" ]] && args+=("$remote_server")
     args+=(install --post --quiet)
 
     # Временный лог-файл для диагностики
@@ -216,7 +249,7 @@ save_runtime_config() {
 	local safe_ssh_port
     safe_ssh_port="$(_escape_for_source "$ssh_port")"
 	local safe_remote_server
-    safe_remote_server="$(_escape_for_source "${REMOTE_SERVER:-}")"
+    safe_remote_server="$(_escape_for_source "${remote_server:-}")"
 
     cat > /root/naive/runtime.env << EOF
 # NaiveProxy Runtime Configuration - DO NOT EDIT MANUALLY
@@ -228,7 +261,7 @@ proxypwd="${safe_proxypwd}"
 domain="${safe_domain}"
 email="${safe_email}"
 ssh_port="${safe_ssh_port}"
-REMOTE_SERVER="${safe_remote_server}"
+remote_server="${safe_remote_server}"
 EOF
 
     chmod 600 /root/naive/runtime.env
@@ -1043,14 +1076,7 @@ if ! command -v xcaddy &>/dev/null; then
     go install github.com/caddyserver/xcaddy/cmd/xcaddy@latest
 fi
 
-            xcaddy build \
-                --with github.com/caddyserver/forwardproxy@caddy2=github.com/klzgrad/forwardproxy@naive \
-                --with github.com/mholt/caddy-ratelimit \
-                --with github.com/rushiiMachine/caddy-ja3 \
-                --with github.com/rushiiMachine/caddy-deflate \
-                --with github.com/ueffel/caddy-brotli \
-                --with github.com/mholt/caddy-l4 \
-				>> "$LOG" 2>&1
+xcaddy build "${CADDY_PLUGINS[@]}" >> "$LOG" 2>&1
 
 if [[ -f ./caddy ]]; then
     mv ./caddy /usr/bin/caddy
@@ -1559,13 +1585,8 @@ if [[ -f /usr/bin/caddy ]]; then
             export GOBIN=/root/go/bin
             export PATH=$PATH:/usr/local/go/bin:$GOBIN
             mkdir -p /root/tmp && export TMPDIR=/root/tmp
-            xcaddy build \
-                --with github.com/caddyserver/forwardproxy@caddy2=github.com/klzgrad/forwardproxy@naive \
-                --with github.com/mholt/caddy-ratelimit \
-                --with github.com/rushiiMachine/caddy-ja3 \
-                --with github.com/rushiiMachine/caddy-deflate \
-                --with github.com/ueffel/caddy-brotli \
-                --with github.com/mholt/caddy-l4
+			
+            xcaddy build "${CADDY_PLUGINS[@]}"
                 
             if [[ -f ./caddy ]]; then
                 mv -f ./caddy /usr/bin/caddy
@@ -1887,7 +1908,7 @@ check_system_requirements() {
 # Function: Install essential tools (curl, wget, openssl, tar)
 # =====================================	
 install_essential_tools() {	
-    for cmd in curl wget openssl tar; do
+    for cmd in "${ESSENTIAL_CMDS[@]}"; do
         if ! command -v "$cmd" &>/dev/null; then
             yellow "  Command '$cmd' not found. Attempting to install ..."
             case $SYSTEM in
@@ -2232,38 +2253,25 @@ install_base_packages() {
         fi
     fi
     
-	if [[ $SYSTEM == "Oracle Linux" ]]; then
-		enable_oracle_epel
-	fi
-    
-    ${PACKAGE_INSTALL[os_idx]} curl wget git sudo dos2unix
-    
-    if ! command -v bc &>/dev/null; then
-        yellow "  Installing bc (calculator) ..."
-        ${PACKAGE_INSTALL[os_idx]} bc -y 2>/dev/null
+    if [[ $SYSTEM == "Oracle Linux" ]]; then
+        enable_oracle_epel
     fi
     
-    if ! command -v dig &>/dev/null; then
-        yellow "  Installation dnsutils (dig) ..."
-        ${PACKAGE_INSTALL[os_idx]} dnsutils 2>/dev/null || ${PACKAGE_INSTALL[os_idx]} bind-utils 2>/dev/null
-    fi
+    # Устанавливаем общие пакеты
+    ${PACKAGE_INSTALL[os_idx]} "${COMMON_PACKAGES[@]}"
     
-    if [[ $SYSTEM == "Debian" ]] || [[ $SYSTEM == "Ubuntu" ]]; then
-        ${PACKAGE_INSTALL[os_idx]} build-essential
-    else
-        ${PACKAGE_INSTALL[os_idx]} gcc gcc-c++ make
-    fi
-    
-    if ! command -v qrencode &>/dev/null; then
-        ${PACKAGE_INSTALL[os_idx]} qrencode 2>/dev/null || yellow "  qrencode not installed (QR codes will not work)"
-    else
-        green "  qrencode already installed"
-    fi
-    
-    if ! command -v dos2unix &>/dev/null; then
-        yellow "  Installing dos2unix ..."
-        ${PACKAGE_INSTALL[os_idx]} dos2unix -y 2>/dev/null || true
-    fi
+    # Устанавливаем специфичные для дистрибутива пакеты
+    case $SYSTEM in
+        Debian|Ubuntu)
+            ${PACKAGE_INSTALL[os_idx]} "${DEBIAN_PACKAGES[@]}"
+            ;;
+        CentOS|Fedora|AlmaLinux|"Rocky Linux"|"Oracle Linux")
+            ${PACKAGE_INSTALL[os_idx]} "${RHEL_PACKAGES[@]}"
+            ;;
+        *)
+            yellow "  Unknown system, skipping OS-specific packages"
+            ;;
+    esac
     
     green "  Basic packages are installed"
 }
@@ -2451,43 +2459,33 @@ auto_detect_domain() {
     local ptr_domain=""
     
     if [[ -z "$server_ip" ]] || [[ "$server_ip" == "unknown" ]]; then
-        yellow "○ No valid server IP provided, skipping auto-detection"
+        yellow "○ No valid server IP provided, skipping auto-detection" >&2
         return 1
     fi
     
-    yellow "→ Attempting to detect domain via reverse DNS (PTR) for IP: $server_ip"
+    yellow "→ Attempting to detect domain via reverse DNS (PTR) for IP: $server_ip" >&2
     
-    # Convert IP to reverse lookup format (e.g., 1.2.3.4 -> 4.3.2.1.in-addr.arpa)
     local reverse_ip
     reverse_ip=$(echo "$server_ip" | awk -F. '{print $4"."$3"."$2"."$1".in-addr.arpa"}')
     
-    # Try DoH first
     if command -v curl &>/dev/null; then
         ptr_domain=$(doh_query "$reverse_ip" "PTR")
     fi
     
-    # Fallback to dig if DoH failed
-    if [[ -z "$ptr_domain" ]]; then
-        if command -v dig &>/dev/null; then
-            ptr_domain=$(dig -x "$server_ip" +short 2>/dev/null | head -1 | sed 's/\.$//')
-        else
-            yellow "○ Neither curl nor dig available for DNS lookup"
-            return 1
-        fi
+    if [[ -z "$ptr_domain" ]] && command -v dig &>/dev/null; then
+        ptr_domain=$(dig -x "$server_ip" +short 2>/dev/null | head -1 | awk '{print $1}' | sed 's/\.$//')
     fi
     
     if [[ -z "$ptr_domain" ]]; then
-        yellow "○ No PTR record found for $server_ip"
+        yellow "○ No PTR record found for $server_ip" >&2
         return 1
     fi
     
-    # Проверяем, что домен выглядит валидно (не IP-подобный)
     if [[ "$ptr_domain" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-        yellow "○ PTR record points to IP address ($ptr_domain), ignoring"
+        yellow "○ PTR record points to IP address ($ptr_domain), ignoring" >&2
         return 1
     fi
     
-    # Optional: verify that domain resolves back to our IP
     local resolved_ip=""
     if command -v curl &>/dev/null; then
         resolved_ip=$(doh_query "$ptr_domain" "A")
@@ -2497,7 +2495,7 @@ auto_detect_domain() {
     fi
     
     if [[ -n "$resolved_ip" ]] && [[ "$resolved_ip" != "$server_ip" ]]; then
-        yellow "○ PTR domain $ptr_domain resolves to $resolved_ip, not our IP. Skipping auto-detection"
+        yellow "○ PTR domain $ptr_domain resolves to $resolved_ip, not our IP. Skipping auto-detection" >&2
         return 1
     fi
     
@@ -2595,7 +2593,7 @@ doh_query() {
         echo "$response" | grep -oE '"data":"[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+"' | sed 's/"data":"//;s/"//' | head -1
         return 0
     elif [[ "$type" == "PTR" ]]; then
-        # For PTR, input name is like "1.2.3.4.in-addr.arpa", output domain without trailing dot
+        # Извлекаем все PTR записи, берём первую, убираем точку в конце
         echo "$response" | grep -oE '"data":"[^"]+"' | sed 's/"data":"//;s/"//;s/\.$//' | head -1
         return 0
     fi
@@ -2681,7 +2679,7 @@ input_parameters() {
 		green "  Username    :  $proxyname"
 		green "  Password    :  $proxypwd"
 		[[ -n "$email" ]] && green "  Email       :  $email"
-		[[ -n "$REMOTE_SERVER" ]] && green "  Remote server: $REMOTE_SERVER"
+		[[ -n "$remote_server" ]] && green "  Remote server: $remote_server"
         echo -e " ${BLUE}. . . . . . . . . . . . .${PLAIN}"
         echo ""
 		
@@ -2692,7 +2690,7 @@ input_parameters() {
 			case $use_saved in
 				n|no)
 					yellow "○ OK, let's reconfigure everything"
-					unset ssh_port proxyport domain email proxyname proxypwd REMOTE_SERVER
+					unset ssh_port proxyport domain email proxyname proxypwd remote_server
 					break
 					;;
 				""|y|yes)
@@ -2854,42 +2852,6 @@ input_parameters() {
     # --- Domain input with auto-detection ---
     # Получаем внешний IP один раз
     SERVER_IP=$(curl -s --max-time 5 ifconfig.me 2>/dev/null || curl -s --max-time 5 icanhazip.com 2>/dev/null || curl -s --max-time 5 ipinfo.io/ip 2>/dev/null)
-    
-    # Автоопределение домена
-    local detected_domain=""
-    if [[ -n "$SERVER_IP" ]] && [[ "$SERVER_IP" != "unknown" ]]; then
-        detected_domain=$(auto_detect_domain "$SERVER_IP")
-        if [[ -n "$detected_domain" ]]; then
-            echo ""
-            read -rp "$(green "  Auto-detected domain: $detected_domain. Use it? [Y/n]: ")" use_detected
-            if [[ "$use_detected" =~ ^[Yy]$ ]] || [[ -z "$use_detected" ]]; then
-                domain="$detected_domain"
-                green "✓ Using domain: $domain"
-                # Проверим DNS для этого домена
-                yellow "→ Checking DNS (DoH with fallback) ..."
-				DOMAIN_IP=""
-				# Try DoH first
-				if command -v curl &>/dev/null; then
-					DOMAIN_IP=$(doh_query "$domain" "A")
-				fi
-				# Fallback to dig
-				if [[ -z "$DOMAIN_IP" ]] && command -v dig &>/dev/null; then
-					DOMAIN_IP=$(dig +short "$domain" | head -1)
-				fi
-                if [[ -z "$DOMAIN_IP" ]]; then
-                    red "✗ Domain $domain does not resolve to an IP address"
-                    yellow "→ Please enter domain manually"
-                    domain=""
-                elif [[ "$DOMAIN_IP" != "$SERVER_IP" ]]; then
-                    red "✗ Domain $domain points to $DOMAIN_IP, but server IP is $SERVER_IP"
-                    yellow "→ Please enter domain manually"
-                    domain=""
-                else
-                    green "✓ DNS check passed: $domain → $DOMAIN_IP"
-                fi
-            fi
-        fi
-    fi
 
     # Ручной ввод, если домен ещё не определён
     while [[ -z "$domain" ]]; do
@@ -2989,14 +2951,14 @@ input_parameters() {
         # Валидация: только IPv4 или домен (RFC 1035)
         if [[ "$remote_server_input" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]] || \
            [[ "$remote_server_input" =~ ^([a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$ ]]; then
-            REMOTE_SERVER="$remote_server_input"
-            green "✓ Remote server set: $REMOTE_SERVER"
+            remote_server="$remote_server_input"
+            green "✓ Remote server set: $remote_server"
         else
             yellow "○ Invalid format (only IP or domain allowed), mutual imitation disabled"
-            REMOTE_SERVER=""
+            remote_server=""
         fi
     else
-        REMOTE_SERVER=""
+        remote_server=""
     fi
 
     # --- Generate admin credentials ---
@@ -3082,14 +3044,9 @@ build_caddy() {
     fi
 
     local logfile="/tmp/caddy-build-$$.log"
-    xcaddy build \
-        --with github.com/caddyserver/forwardproxy@caddy2=github.com/klzgrad/forwardproxy@naive \
-        --with github.com/mholt/caddy-ratelimit \
-        --with github.com/rushiiMachine/caddy-ja3 \
-        --with github.com/rushiiMachine/caddy-deflate \
-        --with github.com/ueffel/caddy-brotli \
-        --with github.com/mholt/caddy-l4 \
-        > "$logfile" 2>&1 &
+	
+    xcaddy build "${CADDY_PLUGINS[@]}" > "$logfile" 2>&1 &
+	
     local build_pid=$!
 
     local spin='-\|/'
@@ -3829,8 +3786,8 @@ show_install_checklist() {
     fi
 
     # ---- Mutual imitation (optional) ----
-    if [[ -n "${REMOTE_SERVER:-}" ]]; then
-        green "✓ Mutual imitation: active (${REMOTE_SERVER})"
+    if [[ -n "${remote_server:-}" ]]; then
+        green "✓ Mutual imitation: active (${remote_server})"
     else
         blue "○ Mutual imitation: not configured (optional)"
     fi
