@@ -1871,8 +1871,8 @@ check_system_requirements() {
             fi
             ;;
         "Ubuntu")
-            VERSION=$(grep -oE 'VERSION_ID="[0-9]+"' /etc/os-release 2>/dev/null | grep -oE '[0-9]+')
-            if [[ ${VERSION:-0} -lt 20 ]]; then
+            VERSION=$(grep '^VERSION_ID=' /etc/os-release | cut -d '"' -f2)
+            if [[ ${VERSION%%.*} -lt 20 ]]; then
                 red "Ubuntu ${VERSION:-unknown} too old! Requires Ubuntu 20.04 or later"
                 exit 1
             fi
